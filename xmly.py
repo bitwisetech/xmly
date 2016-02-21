@@ -48,12 +48,12 @@ def normArgs(argv):
      sys.exit(2)
   #
   for opt, arg in opts:
+    if   opt in ("-f", "--srceFormat"):
+      srceFmat = arg
+    if   opt in ("-g", "--genFormat"):
+      genrFmat  = arg
     if   opt in ("-a", "--alitude"):
       targAlt  = int(arg)
-    if   opt in ("-f", "--srceformat"):
-      srceFmat = arg
-    if   opt in ("-g", "--genformat"):
-      genrFmat  = arg
     if   opt in ("-h", "--help"):
       wantHelp = 1
     if   opt in ("-i", "--inptfid"):
@@ -887,9 +887,16 @@ class fplnMill:
     print(self.pthL)
 
 def printHelp():
-  print('\npython xmly.py -i /pathto/InpFile -o /path/to/{OutFile|"AUTO"}   ')
-  print('          -f SrceFormat -g OututFormat                    ')
-  print('         [-n icao] [-p proc] [-r rway] [-t {"Sid"|"Star"}] [-w wypt]')
+  print('\n xmly.py is a utility for generating various format route files   ')
+  print('           used by flightgear ( Route Manager / AI Aircraft )       ')
+  print('            and by OpenRadar or ATC-pie for SID/STAR path outlines  ')
+  print('                                                                    ')
+  print('\npython xmly.py -i --inputfid    /path/to/InpFile                  ')
+  print('                 -o --outputfid   /path/to/{OutFile|"AUTO"}         ')
+  print('                 -f --srceformat  -g --genformat                    ')
+  print('                                                                    ')
+  print('  [-a --altitude ] [-h --help ] [-n --icao] [-p --proc] [-r rway]   ')
+  print('  [-s --spec] [-t --type {"Sid"|"Star"}] [-w --waypoint]            ')                                                                  ')
   print('                                                                    ')
   print('Source Format may be one of these: ')
   print('  -f ARDP   Fixed Lgth text file (US Only) from: ..')
@@ -901,6 +908,12 @@ def printHelp():
   print('  -f PATH  KML Places File with an image overlay and paths section  ')
   print('    Deprecated: Use -i PMKS with Overlay and Waypoints as Placemarks')
   print('  -f PMKS  KML Places file with Image Overlay and Placemark paths   ')
+  print('                                                                    ')
+  print(' Specification file, manually generated, associates SID/STAR and Rwy')
+  print('  -s --spec path/to/specFile                                        ')
+  print('  Fields in spec file have: ICAO, "Sid|Star", WYPTID, RWYID         ')
+  print('  eg:  KIAD, Star, BARIN, 30                                        ')
+  print('  eg:  KIAD, Sid, TIICE, 19L                                        ')
   print('                                                                    ')
   print('Outut format may be one of these:')
   print('  -g FGAI  FlightGgear AI Flightplan for fgdata/AI/FlightPlans      ')
@@ -915,10 +928,10 @@ def printHelp():
   print('                                                                    ')
   print('  -o some/path/AUTO will construct an appropriate FGLD, FGAI, ORDR  ')
   print('       formatted fileID and create the output file in some/path dir ')
-  print('  -p PROC limits outut to the specific STAR/SID procedures named    ')
-  print('  -r RWID Applies that runway ID into output files xml tags         ')
-  print('  -t TYPE limits output to STAR / SID procedure type                ')
-  print('  -w WPID Narrows the output generated to paths ending in WPID      ')
+  print('  -p --proc PROCID :limit output to specific named STAR/SIDs        ')
+  print('  -r --runway RWID Applies that runway ID into output's xml tags    ')
+  print('  -t --type TYPE limits output to STAR / SID procedure type         ')
+  print('  -w --waypoint WPID Limits output generated to paths ending WPID   ')
   print('                                                                    ')
   print('Some editing of the output files may be needed                  ')
   print('  e.g. Correct Altitude, gear, flaps, on-ground fields  ')
