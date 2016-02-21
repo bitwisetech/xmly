@@ -511,6 +511,71 @@ class fplnMill:
     specHndl.close()
 
   #
+  # ATC-pie output format: for creating path displays
+  #
+  # There is no header, no tail in ATC-pie drawn files
+
+  def toATPIPath( self, oHdl, p):
+    ''' call from toATPIBody with hndl, pathIndx to write single path '''
+    # Create eight different line styles and seven different colors
+    depClrs = ['#F01414',  '#F01450',  '#F0148C',  '#F014C8', \
+               '#F05014',  '#F05050',  '#F0508C',  '#F050C8', \
+               '#F08C14',  '#F08C50',  '#F08C8C',  '#F08CCC'  ]
+    arrClrs = ['#1414F0',  '#1450F0',  '#148CF0',  '#14C8F0', \
+               '#5014F0',  '#5050F0',  '#508CF0',  '#50C8F0', \
+               '#8C14F0',  '#8C50F0',  '#8C8CF0',  '#8CC8F0'  ]
+    tSsid = (self.pthL[p]['ssid']).lower()
+    # remove '-Txtn' suffixes from route types
+    if (tSsid == 'Sid-Txtn') :
+      tSsid = 'sid'
+    if (tSsid == 'Star-Txtn') :
+      tSsid = 'star'
+    if (tSsid == 'sid') :
+      # pink shift for departing wpts
+      oL = '#F0C8A0'
+    else:
+      # skyblue shift for approach wpts
+      oL = '#A0C8F0\n'
+    oHdl.write(oL)
+    # Write line segments
+    for l in range(self.pthL[p]['tale']-1):
+      latN = '{:f}'.format(self.pthL[p]['legL'][l]['latN'])
+      lonE = '{:f}'.format(self.pthL[p]['legL'][l]['lonE'])
+      if (tSsid == 'sid'):
+        segColr = depClrs[(p%12)]
+      else:
+        segColr = arrClrs[(p%12)]
+      oL = '{:s},{:s}\n'.format(latN, lonE)
+      oHdl.write(oL)
+    # Close route segme
+    oHdl.write('  \n')
+
+  def toATPIBody( self, oHdl):
+    ''' given open file Handle:  write ATC-pie dwng  body from legs lists '''
+    for p in range(self.pthsTale):
+      # Each path may apply to more than one rway according to rwaySpec entry
+      if ( specFile == '' ):
+        # no runway spec file called, output path
+        tRout.toATPIPath( oHdl, p )
+      else:
+        for s in range(self.specTale):
+          if (icaoSpec in self.specL[s]['icao'] ):
+            if (self.specL[s]['type'] == self.pthL[p]['ssid']):
+              if ('Star' in self.specL[s]['type']):
+                # Arr list needs to match last wypt
+                l = self.pthL[p]['tale']
+                if (self.specL[s]['wypt'] == self.pthL[p]['legL'][l-1]['iden']):
+                  # call output path with rway inserted from specfile
+                  specRway = self.specL[s]['rway']
+                  tRout.toATPIPath( oHdl, p )
+              if ('Sid' in self.specL[s]['type']):
+                # Dep list needs to match first wypt
+                if (self.specL[s]['wypt'] == self.pthL[p]['legL'][0]['iden']):
+                  # call output path with rway inserted from specfile
+                  specRway = self.specL[s]['rway']
+                  tRout.toATPIPath( oHdl, p )
+
+  #
   # FlightGear AI Scenario 1 Output format: for AI/FlightPlans directory
   #
   def toFGAIHead( self, oHdl):
@@ -1000,6 +1065,11 @@ if __name__ == "__main__":
     if ('PMKS' in srceFmat.upper()):
       tRout.fromPMKS(inptFId)
     # run output frmatter
+    if ('ATPI' in genrFmat.upper()):
+      if ( specFile != ''):
+        tRout.fromSpec( specFile)
+      #tRout.dbgPrnt()
+      tRout.toATPIBody(oHdl)
     if ( 'FGAI' in genrFmat.upper()):
       tRout.toFGAIHead(oHdl)
       tRout.toFGAIBody(oHdl)
