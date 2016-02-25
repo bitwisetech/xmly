@@ -313,7 +313,7 @@ class fplnMill:
             |(tTyp == '(VECTORS)') ):
           if ( (typeSpec != 'typeAAll') & (ssidType != typeSpec)):
             progress = 'dontWant'
-          print('313:', rwaySpec, rwayCurr)
+          #print('313:', rwaySpec, rwayCurr)
           if ( (rwaySpec != 'rwayAAll') & (rwayCurr != rwaySpec)):
             progress = 'dontWant'
           if (progress != 'dontWant'):
