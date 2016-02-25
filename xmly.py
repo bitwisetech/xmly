@@ -259,10 +259,12 @@ class fplnMill:
   # Level-D input format: xml file from navigraph subscription
   #   Each named procedure is a list of placemarks
   def fromLEVD( self, inptFId):
-    '''open a GE kml image olay + Placemark list, append to prcs'''
+    wpntIndx = tNam = tTyp = tLat = tLon = tAlt =''
+    '''open a Level-D xml file, create dictionary of path legs'''
     with open(inptFId, 'r') as srceHndl:
+      # LevD has only one ICAO id per file, end tag depends on proc type
       progress = 'seekICAO'
-      ssidEnds = 'noEndYet '
+      ssidEnds = 'noEndYet'
       for srceLine in srceHndl:
         if (( progress == 'seekICAO') & ('<Airport ICAOcode="' in srceLine)) :
           begnPosn = (srceLine.find('<Airport ICAOcode="') + 19 )
@@ -274,25 +276,25 @@ class fplnMill:
           endnPosn = (srceLine[begnPosn:].find(' ')) + begnPosn
           ssidType = srceLine[begnPosn:endnPosn]
           ssidEnds = '</' + ssidType + '>'
-          if ( ssidType == 'Star-Txtn'):
+          if ( ssidType == 'Star_Transition'):
             ssidEnds = '</StarTr_Waypoint>'
           # advance begnPosn to first "
           begnPosn = srceLine.find('Name="') + 6
           endnPosn = srceLine[begnPosn + 1 :].find('"') + begnPosn + 1
           self.pathName = srceLine[begnPosn:endnPosn]
-          rwaySpec = ''
+          rwayCurr = ''
           if (( ssidType == 'Sid') | ( ssidType == 'Star')) :
             begnPosn = srceLine.find('Runways="') + 9
             endnPosn = srceLine.find('">')
-            rwaySpec = srceLine[begnPosn:endnPosn]
-          else :
-            rwaySpec = ''
+            rwayCurr = srceLine[begnPosn:endnPosn]
           # Clean Legs for each new path
           pDic = {}
           self.legL = []
           self.legsTale = 0
-          wpntIndx = tName = tType = tLat = tLon = tAlt =''
+          wpntIndx = tNam = tTyp = tLat = tLon = tAlt =''
           progress = 'seekNextWpnt'
+        # Leg elements are on multi lines collected later
+        # _Waypoint in ending tag indicates all elements collected
         if ((progress == 'seekNextWpnt') & ('_Waypoint ID="' in srceLine)):
           begnPosn = srceLine.find('_Waypoint ID="') + 14
           endnPosn = srceLine[begnPosn:].find('"')
@@ -307,11 +309,18 @@ class fplnMill:
             self.legL.append(lDic)
             self.legsTale += 1
           progress = 'seekNextWpnt'
-        if ((progress == 'seekNextWpnt') & (ssidEnds  in srceLine)):
-          pDic = dict( path = self.pathName, rway = rwaySpec, ssid = ssidType, \
-                       legL = self.legL, tale = self.legsTale)
-          self.pthL.append(copy.deepcopy(pDic))
-          self.pthsTale += 1
+        if ( ((progress == 'seekNextWpnt') & (ssidEnds  in srceLine)) \
+            |(tTyp == '(VECTORS)') ):
+          if ( (typeSpec != 'typeAAll') & (ssidType != typeSpec)):
+            progress = 'dontWant'
+          print('313:', rwaySpec, rwayCurr)
+          if ( (rwaySpec != 'rwayAAll') & (rwayCurr != rwaySpec)):
+            progress = 'dontWant'
+          if (progress != 'dontWant'):
+            pDic = dict( path = self.pathName, rway = rwaySpec, ssid = ssidType, \
+                         legL = self.legL, tale = self.legsTale)
+            self.pthL.append(copy.deepcopy(pDic))
+            self.pthsTale += 1
           progress = 'seekNextPath'
         if (( progress == 'doinWpnt') & ('<Name>' in srceLine)):
           begnPosn = srceLine.find('<Name>') + 6
@@ -321,6 +330,7 @@ class fplnMill:
           begnPosn = srceLine.find('<Type>') + 6
           endnPosn = srceLine.find('</Type>')
           tTyp = srceLine[begnPosn:endnPosn]
+          typeFlag = tTyp
         if (( progress == 'doinWpnt') & ('<Latitude>' in srceLine)):
           begnPosn = srceLine.find('<Latitude>') + 10
           endnPosn = srceLine.find('</Latitude>')
@@ -515,7 +525,7 @@ class fplnMill:
   #
   # There is no header, no tail in ATC-pie drawn files
 
-  def toATPIPath( self, oHdl, p):
+  def toATPIPath( self, oHdl, p, rway):
     ''' call from toATPIBody with hndl, pathIndx to write single path '''
     # Create eight different line styles and seven different colors
     depClrs = ['#F01414',  '#F01450',  '#F0148C',  '#F014C8', \
@@ -532,20 +542,28 @@ class fplnMill:
       tSsid = 'star'
     if (tSsid == 'sid') :
       # pink shift for departing wpts
-      oL = '#F0C8A0'
+      oL = '\n {:s}'.format(depClrs[(p%12)])
     else:
       # skyblue shift for approach wpts
-      oL = '#A0C8F0\n'
+      oL = '\n {:s}'.format(arrClrs[(p%12)])
     oHdl.write(oL)
     # Write line segments
     for l in range(self.pthL[p]['tale']-1):
       latN = '{:f}'.format(self.pthL[p]['legL'][l]['latN'])
       lonE = '{:f}'.format(self.pthL[p]['legL'][l]['lonE'])
-      if (tSsid == 'sid'):
-        segColr = depClrs[(p%12)]
-      else:
-        segColr = arrClrs[(p%12)]
-      oL = '{:s},{:s}\n'.format(latN, lonE)
+      oL = '\n{:s},{:s}'.format(latN, lonE)
+      # Arrival first line append proc name
+      if((tSsid == 'star') & (l == 0)):
+        oL = oL + ' ' + self.pthL[p]['legL'][l]['iden']
+      #Arrival last line append rwy ID
+      if((tSsid == 'star') & (l == (self.pthL[p]['tale']-2))):
+        oL = oL + ' ' + rway
+      # Depart  first line append rway ID
+      if((tSsid == 'sid') & (l == 0)):
+        oL = oL + ' ' + rway
+      #Depart last line append proc name
+      if((tSsid == 'sid') & (l == (self.pthL[p]['tale']-2))):
+        oL = oL + ' ' + self.pthL[p]['legL'][l]['iden']
       oHdl.write(oL)
     # Close route segme
     oHdl.write('  \n')
@@ -556,7 +574,7 @@ class fplnMill:
       # Each path may apply to more than one rway according to rwaySpec entry
       if ( specFile == '' ):
         # no runway spec file called, output path
-        tRout.toATPIPath( oHdl, p )
+        tRout.toATPIPath( oHdl, p, self.pthL[p]['rway'] )
       else:
         for s in range(self.specTale):
           if (icaoSpec in self.specL[s]['icao'] ):
@@ -567,13 +585,13 @@ class fplnMill:
                 if (self.specL[s]['wypt'] == self.pthL[p]['legL'][l-1]['iden']):
                   # call output path with rway inserted from specfile
                   specRway = self.specL[s]['rway']
-                  tRout.toATPIPath( oHdl, p )
+                  tRout.toATPIPath( oHdl, p, specRway  )
               if ('Sid' in self.specL[s]['type']):
                 # Dep list needs to match first wypt
                 if (self.specL[s]['wypt'] == self.pthL[p]['legL'][0]['iden']):
                   # call output path with rway inserted from specfile
                   specRway = self.specL[s]['rway']
-                  tRout.toATPIPath( oHdl, p )
+                  tRout.toATPIPath( oHdl, p, specRway  )
 
   #
   # FlightGear AI Scenario 1 Output format: for AI/FlightPlans directory
@@ -1041,7 +1059,7 @@ if __name__ == "__main__":
         outpFId  = outpFId[:subsPosn] + icaoSpec[0:1] + '/'  \
         + icaoSpec[1:2] + '/'+ icaoSpec[2:3] + '/'+ icaoSpec \
         + '.procedures.xml'
-      if ( 'ORDR' in genrFmat.upper()):
+      if (( 'ATPI' in genrFmat.upper()) | ( 'ORDR' in genrFmat.upper())):
         outpFId  = outpFId[:subsPosn] + icaoSpec + '-' + typeSpec + '-' \
         +  procSpec  + '-' + wyptSpec + '-' + rwaySpec + '-ORDR.xml'
       if ( 'RMV1' in genrFmat.upper()):
