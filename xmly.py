@@ -413,7 +413,6 @@ class fplnMill:
           for p in range(self.pntsTale):
             ##print (self.pntsList[p]['iden'], endnLegn)
             if (self.pntsList[p]['iden'] == endnLegn):
-              print (endnLegn)
               latDec = float(self.pntsList[p]['latS'])
               lonDec = float(self.pntsList[p]['lonS'])
               lDic = dict( iden = endnLegn, latN = latDec, \
