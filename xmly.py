@@ -345,6 +345,91 @@ class fplnMill:
           tAlt = int(srceLine[begnPosn:endnPosn])
     srceHndl.close()
 
+
+  # OpenRadar input: an optional list of name points then xml path specs
+  def fromORDR( self, inptFId):
+    # must stash list of named points with lat, lon
+    self.pntsList = []
+    self.pntsTale = 0
+    with open(inptFId, 'r') as srceHndl:
+      for srceLine in srceHndl:
+        # for all 'addPoint lines save name, lat, lon in pntsList
+        if ( '<addPoint code=' in srceLine):
+          begnPosn = srceLine.find( '<addPoint code="')  + 16
+          endnPosn = srceLine[begnPosn:].find( '"') + begnPosn
+          pntsName = srceLine[begnPosn:endnPosn]
+          begnPosn = srceLine.find( 'point="')      + 7
+          endnPosn = srceLine[begnPosn:].find( '"/>') + begnPosn
+          sstrLlon = srceLine[begnPosn:endnPosn]
+          begnPosn = sstrLlon.find(',')
+          pntsLati = sstrLlon[:begnPosn]
+          pntsLong = sstrLlon[(begnPosn+1):]
+          pntsItem = dict( iden = pntsName, latS = pntsLati, lonS = pntsLong)
+          # Named points hould contain no duplcate, do not test for dups
+          self.pntsList.append(copy.deepcopy(pntsItem))
+          self.pntsTale += 1
+        # at 'route name' tag parse fields
+        if ( '<route name="' in srceLine):
+          begnPosn = srceLine.find( '<route name="')  + 13
+          endnPosn = srceLine[begnPosn:].find( '"') + begnPosn
+          self.pathName = srceLine[begnPosn:endnPosn]
+          begnPosn = srceLine.find( 'displayMode="')  + 13
+          endnPosn = srceLine[begnPosn:].find( '"') + begnPosn
+          ssidType = srceLine[begnPosn:endnPosn]
+          begnPosn = srceLine.find( 'color="')  + 7
+          endnPosn = srceLine[begnPosn:].find( '"') + begnPosn
+          tRGB     = srceLine[begnPosn:endnPosn]
+          self.legL = []
+          self.legsTale = 0
+        # at 'runway' tag parse fields
+        if ( '<activeLan' in srceLine):
+          begnPosn = srceLine.find( '<activeLandingRunways>')  + 22
+          endnPosn = srceLine[begnPosn:].find( '</active') + begnPosn
+          rwaySpec = srceLine[begnPosn:endnPosn]
+        if ( '<activeSta' in srceLine):
+          begnPosn = srceLine.find( '<activeStartRunways>')  + 20
+          endnPosn = srceLine[begnPosn:].find( '</active') + begnPosn
+          rwaySpec = srceLine[begnPosn:endnPosn]
+        # at 'line start' tag parse and create leg
+        if ( '<line start' in srceLine):
+          begnPosn = srceLine.find( '<line start="')  + 13
+          endnPosn = srceLine[begnPosn:].find( '"') + begnPosn
+          begnLegn = srceLine[begnPosn:endnPosn]
+          # OR line segments dup begn name with prev endn name
+          begnPosn = srceLine.find( 'end="')  + 5
+          endnPosn = srceLine[begnPosn:].find( '"') + begnPosn
+          endnLegn = srceLine[begnPosn:endnPosn]
+          # save all segments beginning names as legs
+          for p in range(self.pntsTale):
+            if (self.pntsList[p]['iden'] == begnLegn):
+              latDec = float(self.pntsList[p]['latS'])
+              lonDec = float(self.pntsList[p]['lonS'])
+              lDic = dict( iden = begnLegn, latN = latDec, \
+                           lonE = lonDec,   altF = float(0))
+              self.legL.append(lDic)
+              self.legsTale += 1
+        # after last leg segment, use stashed endn name as last leg
+        if ( '</route>' in srceLine):
+          for p in range(self.pntsTale):
+            ##print (self.pntsList[p]['iden'], endnLegn)
+            if (self.pntsList[p]['iden'] == endnLegn):
+              print (endnLegn)
+              latDec = float(self.pntsList[p]['latS'])
+              lonDec = float(self.pntsList[p]['lonS'])
+              lDic = dict( iden = endnLegn, latN = latDec, \
+                           lonE = lonDec,   altF = float(0))
+              self.legL.append(lDic)
+              self.legsTale += 1
+          # leg list complete, append as new path
+          pDic = dict( path = self.pathName, rway = rwaySpec, ssid = ssidType, \
+                       legL = self.legL, tale = self.legsTale)
+          self.pthL.append(copy.deepcopy(pDic))
+          self.pthsTale += 1
+    ##print (self.pthL)
+
+    srceHndl.close()
+
+
   #
   # kml overlay input format: kml path created from tracing a GE Image Overlay
   #   Deprecated: works for GE paths .. uwse fromKmlPmrk instead
@@ -554,7 +639,8 @@ class fplnMill:
       oL = '\n{:s},{:s}'.format(latN, lonE)
       # Arrival first line append proc name
       if((tSsid == 'star') & (l == 0)):
-        oL = oL + ' ' + self.pthL[p]['legL'][l]['iden']
+        ##oL = oL + ' ' + self.pthL[p]['legL'][l]['iden']
+        oL = oL + ' ' + self.pthL[p]['path']
       #Arrival last line append rwy ID
       if((tSsid == 'star') & (l == (self.pthL[p]['tale']-2))):
         oL = oL + ' ' + rway
@@ -563,7 +649,8 @@ class fplnMill:
         oL = oL + ' ' + rway
       #Depart last line append proc name
       if((tSsid == 'sid') & (l == (self.pthL[p]['tale']-2))):
-        oL = oL + ' ' + self.pthL[p]['legL'][l]['iden']
+       ## oL = oL + ' ' + self.pthL[p]['legL'][l]['iden']
+        oL = oL + ' ' + self.pthL[p]['path']
       oHdl.write(oL)
     # Close route segme
     oHdl.write('  \n')
@@ -1078,6 +1165,8 @@ if __name__ == "__main__":
     if ('LEVD' in srceFmat.upper()):
       tRout.fromLEVD(inptFId)
       #tRout.dbugPrnt()
+    if ('ORDR' in srceFmat.upper()):
+      tRout.fromORDR(inptFId)
     if ('PATH' in srceFmat.upper()):
       tRout.fromPATH(inptFId)
     if ('PMKS' in srceFmat.upper()):
