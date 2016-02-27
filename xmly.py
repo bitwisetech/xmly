@@ -668,16 +668,10 @@ class fplnMill:
     for l in range(self.pthL[p]['tale']-1):
       latN = '{:f}'.format(self.pthL[p]['legL'][l]['latN'])
       lonE = '{:f}'.format(self.pthL[p]['legL'][l]['lonE'])
-      if (self.pthL[p]['legL'][l]['iden']  == 'EURRO'):
-        print(latN, lonE)
       # if bogus lat, lon then output by name, else numeric lat, lon
       if ((float(latN) > 90) & (float(lonE) > 180)):
         oL = '\n{:s} '.format(self.pthL[p]['legL'][l]['iden'])
-        if (self.pthL[p]['legL'][l]['iden']  == 'EURRO'):
-          print('fake latLon')
       else:
-        if (self.pthL[p]['legL'][l]['iden']  == 'EURRO'):
-          print('good latLon')
         oL = '\n{:s},{:s}'.format(latN, lonE)
       # pull 'remarks' field, if blank make up begin-end labels
       self.rmks =   self.pthL[p]['legL'][l]['rmks']
