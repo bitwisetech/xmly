@@ -369,8 +369,8 @@ class fplnMill:
           self.pntsList.append(copy.deepcopy(pntsItem))
           self.pntsTale += 1
         # at 'route name' tag parse fields
-        if ( '<route name="' in srceLine):
-          begnPosn = srceLine.find( '<route name="')  + 13
+        if ( '<route' in srceLine):
+          begnPosn = srceLine.find( ' name="')  + 7
           endnPosn = srceLine[begnPosn:].find( '"') + begnPosn
           self.pathName = srceLine[begnPosn:endnPosn]
           begnPosn = srceLine.find( 'displayMode="')  + 13
@@ -399,33 +399,60 @@ class fplnMill:
           begnPosn = srceLine.find( 'end="')  + 5
           endnPosn = srceLine[begnPosn:].find( '"') + begnPosn
           endnLegn = srceLine[begnPosn:endnPosn]
-          # save all segments beginning names as legs
+          # parse any tesxt field as 'remarks'
+          self.rmks = ''
+          if ( 'text=' in srceLine):
+            begnPosn = srceLine.find( 'text="')  + 6
+            endnPosn = srceLine[begnPosn:].find( '"') + begnPosn
+            self.rmks = srceLine[begnPosn:endnPosn]
+          else:
+            self.rmks = 'none'
+          # match an 'added-point' with lat, lon from list
+          addnPntn = 0
           for p in range(self.pntsTale):
             if (self.pntsList[p]['iden'] == begnLegn):
               latDec = float(self.pntsList[p]['latS'])
               lonDec = float(self.pntsList[p]['lonS'])
-              lDic = dict( iden = begnLegn, latN = latDec, \
-                           lonE = lonDec,   altF = float(0))
+              lDic   = dict( iden = begnLegn, latN = latDec, lonE = lonDec, \
+                             altF = float(0),  rmks = self.rmks)
               self.legL.append(lDic)
               self.legsTale += 1
+              addnPntn = 1
+          if (addnPntn == 0):
+            # not addpoint: save as waypoint name with bogus lat, lon
+            latDec =  99
+            lonDec = 199
+            lDic   = dict( iden = begnLegn, latN = latDec,   lonE = lonDec, \
+                           altF = float(0), rmks = self.rmks )
+            self.legL.append(lDic)
+            self.legsTale += 1
         # after last leg segment, use stashed endn name as last leg
         if ( '</route>' in srceLine):
+          addnPntn = 0
           for p in range(self.pntsTale):
             ##print (self.pntsList[p]['iden'], endnLegn)
             if (self.pntsList[p]['iden'] == endnLegn):
               latDec = float(self.pntsList[p]['latS'])
               lonDec = float(self.pntsList[p]['lonS'])
-              lDic = dict( iden = endnLegn, latN = latDec, \
-                           lonE = lonDec,   altF = float(0))
+              lDic   = dict( iden = begnLegn, latN = latDec,   lonE = lonDec, \
+                             altF = float(0), rmks = self.rmks )
               self.legL.append(lDic)
               self.legsTale += 1
+              addnPntn = 1
+          if (addnPntn == 0):
+            # not addpoint: save as waypoint name with bogus lat, lon
+            latDec =  99
+            lonDec = 199
+            lDic = dict( iden = begnLegn, latN = latDec,   lonE = lonDec, \
+                         altF = float(0), rmks = self.rmks )
+            self.legL.append(lDic)
+            self.legsTale += 1
           # leg list complete, append as new path
           pDic = dict( path = self.pathName, rway = rwaySpec, ssid = ssidType, \
                        legL = self.legL, tale = self.legsTale)
           self.pthL.append(copy.deepcopy(pDic))
           self.pthsTale += 1
-    ##print (self.pthL)
-
+    #print(self.pntsList)
     srceHndl.close()
 
 
@@ -609,7 +636,7 @@ class fplnMill:
   #
   # There is no header, no tail in ATC-pie drawn files
 
-  def toATPIPath( self, oHdl, p, rway):
+  def toATPIPath( self, outpFId, p, rway):
     ''' call from toATPIBody with hndl, pathIndx to write single path '''
     # Create eight different line styles and seven different colors
     depClrs = ['#F01414',  '#F01450',  '#F0148C',  '#F014C8', \
@@ -619,6 +646,12 @@ class fplnMill:
                '#5014F0',  '#5050F0',  '#508CF0',  '#50C8F0', \
                '#8C14F0',  '#8C50F0',  '#8C8CF0',  '#8CC8F0'  ]
     tSsid = (self.pthL[p]['ssid']).lower()
+    # construct output fileID from outpFId and pathname / number
+    pathSfix = self.pthL[p]['path']
+    if (pathSfix == ''):
+      pathSfix = p
+    pathFId = outpFId + '-' + pathSfix + '-' + rway + '.txt'
+    oHdl  = open(pathFId, 'w', 0)
     # remove '-Txtn' suffixes from route types
     if (tSsid == 'Sid-Txtn') :
       tSsid = 'sid'
@@ -635,32 +668,53 @@ class fplnMill:
     for l in range(self.pthL[p]['tale']-1):
       latN = '{:f}'.format(self.pthL[p]['legL'][l]['latN'])
       lonE = '{:f}'.format(self.pthL[p]['legL'][l]['lonE'])
-      oL = '\n{:s},{:s}'.format(latN, lonE)
-      # Arrival first line append proc name
-      if((tSsid == 'star') & (l == 0)):
-        ##oL = oL + ' ' + self.pthL[p]['legL'][l]['iden']
-        oL = oL + ' ' + self.pthL[p]['path']
-      #Arrival last line append rwy ID
-      if((tSsid == 'star') & (l == (self.pthL[p]['tale']-2))):
-        oL = oL + ' ' + rway
-      # Depart  first line append rway ID
-      if((tSsid == 'sid') & (l == 0)):
-        oL = oL + ' ' + rway
-      #Depart last line append proc name
-      if((tSsid == 'sid') & (l == (self.pthL[p]['tale']-2))):
-       ## oL = oL + ' ' + self.pthL[p]['legL'][l]['iden']
-        oL = oL + ' ' + self.pthL[p]['path']
+      if (self.pthL[p]['legL'][l]['iden']  == 'EURRO'):
+        print(latN, lonE)
+      # if bogus lat, lon then output by name, else numeric lat, lon
+      if ((float(latN) > 90) & (float(lonE) > 180)):
+        oL = '\n{:s} '.format(self.pthL[p]['legL'][l]['iden'])
+        if (self.pthL[p]['legL'][l]['iden']  == 'EURRO'):
+          print('fake latLon')
+      else:
+        if (self.pthL[p]['legL'][l]['iden']  == 'EURRO'):
+          print('good latLon')
+        oL = '\n{:s},{:s}'.format(latN, lonE)
+      # pull 'remarks' field, if blank make up begin-end labels
+      self.rmks =   self.pthL[p]['legL'][l]['rmks']
+      if (self.rmks == 'none'):
+        self.rmks = ''
+        # Arrival first line append proc name
+        if((tSsid == 'star') & (l == 0)):
+          self.rmks = self.pthL[p]['path']
+        #Arrival last line append rwy ID
+        if((tSsid == 'star') & (l == (self.pthL[p]['tale']-2))):
+          self.rmks = rway
+        # Depart  first line append rway ID
+        if((tSsid == 'sid') & (l == 0)):
+          self.rmks = rway
+        #Depart last line append proc name
+        if((tSsid == 'sid') & (l == (self.pthL[p]['tale']-2))):
+          self.rmks = self.pthL[p]['path']
+      oL = oL + ' ' + self.rmks
       oHdl.write(oL)
     # Close route segme
     oHdl.write('  \n')
+    # Construct refeence line for list file
+    self.listLine = pathFId + ' DRAW ' + pathSfix + '-' + rway + '\n'
+    self.listHndl.write(self.listLine)
+    oHdl.flush
+    oHdl.close
 
-  def toATPIBody( self, oHdl):
-    ''' given open file Handle:  write ATC-pie dwng  body from legs lists '''
+  def toATPIBody( self, outpFId):
+    ''' given open file ID write ATC-pie dwng  body from legs lists '''
+    # create and open list file holding refs to all path files created
+    self.listFId   = outpFId + '.lst'
+    self.listHndl  = open(self.listFId, 'w', 0)
     for p in range(self.pthsTale):
       # Each path may apply to more than one rway according to rwaySpec entry
       if ( specFile == '' ):
         # no runway spec file called, output path
-        tRout.toATPIPath( oHdl, p, self.pthL[p]['rway'] )
+        tRout.toATPIPath( outpFId, p, self.pthL[p]['rway'] )
       else:
         for s in range(self.specTale):
           if (icaoSpec in self.specL[s]['icao'] ):
@@ -671,13 +725,15 @@ class fplnMill:
                 if (self.specL[s]['wypt'] == self.pthL[p]['legL'][l-1]['iden']):
                   # call output path with rway inserted from specfile
                   specRway = self.specL[s]['rway']
-                  tRout.toATPIPath( oHdl, p, specRway  )
+                  tRout.toATPIPath( outpFId, p, specRway  )
               if ('Sid' in self.specL[s]['type']):
                 # Dep list needs to match first wypt
                 if (self.specL[s]['wypt'] == self.pthL[p]['legL'][0]['iden']):
                   # call output path with rway inserted from specfile
                   specRway = self.specL[s]['rway']
-                  tRout.toATPIPath( oHdl, p, specRway  )
+                  tRout.toATPIPath( outpFId, p, specRway  )
+    self.listHndl.flush
+    self.listHndl.close
 
   #
   # FlightGear AI Scenario 1 Output format: for AI/FlightPlans directory
@@ -1152,8 +1208,6 @@ if __name__ == "__main__":
         outpFId  = outpFId[:subsPosn] + icaoSpec + '-' \
         + typeSpec + '-' +  procSpec  + '-' +  rwaySpec + '-RMV1.xml'
       print('Auto outpFId: ' + outpFId)
-    # open output file
-    oHdl  = open(outpFId, 'w', 0)
     # create flightPLanMill
     tRout = fplnMill(icaoSpec + '-' + typeSpec)
     # run input file scanner
@@ -1171,30 +1225,45 @@ if __name__ == "__main__":
     if ('PMKS' in srceFmat.upper()):
       tRout.fromPMKS(inptFId)
     # run output frmatter
+    #to ATPI creates multiple files: FId is passed, not handle
     if ('ATPI' in genrFmat.upper()):
       if ( specFile != ''):
         tRout.fromSpec( specFile)
       #tRout.dbgPrnt()
-      tRout.toATPIBody(oHdl)
+      tRout.toATPIBody(outpFId)
     if ( 'FGAI' in genrFmat.upper()):
+      # open output file
+      oHdl  = open(outpFId, 'w', 0)
       tRout.toFGAIHead(oHdl)
       tRout.toFGAIBody(oHdl)
       tRout.toFGAITail(oHdl)
+      oHdl.flush
+      oHdl.close
     if ( 'FGLD' in genrFmat.upper()):
+      # open output file
+      oHdl  = open(outpFId, 'w', 0)
       tRout.toFGLDHead(oHdl)
       tRout.toFGLDBody(oHdl)
       tRout.toFGLDTail(oHdl)
+      oHdl.flush
+      oHdl.close
     if ('ORDR' in genrFmat.upper()):
+      # open output file
+      oHdl  = open(outpFId, 'w', 0)
       if ( specFile != ''):
         tRout.fromSpec( specFile)
       #tRout.dbgPrnt()
       tRout.toORDRHead(oHdl)
       tRout.toORDRBody(oHdl)
       tRout.toORDRTail(oHdl)
+      oHdl.flush
+      oHdl.close
     if ('RMV1' in genrFmat.upper()):
+      # open output file
+      oHdl  = open(outpFId, 'w', 0)
       tRout.toRMV1Head( oHdl)
       tRout.toRMV1Body( oHdl)
       tRout.toRMV1Tail( oHdl)
+      oHdl.flush
+      oHdl.close
     # close output file
-    oHdl.flush
-    oHdl.close
