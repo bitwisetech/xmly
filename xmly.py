@@ -148,6 +148,8 @@ class fplnMill:
       currSequ = '     '
       progress = 'openFile'
       wantSubt = ''
+      #stashed FAAN for matching STAR/SID to transition proc
+      wantPost = ''
       for srceLine in srceHndl:
         # segment name for all srceLines starts at col 30
         blnkPosn = 30 + srceLine[30:].find(' ')
@@ -157,6 +159,7 @@ class fplnMill:
           progress = 'anewSequ'
           self.legL = []
           self.legsTale = 0
+          # parse procedure into preface, post and full FAA name
           stopPosn = srceLine.find('.')
           blnkPosn = stopPosn + srceLine[stopPosn:].find(' ')
           prefFAAN = srceLine[38:stopPosn]
@@ -190,6 +193,10 @@ class fplnMill:
               tAlt = 5000
               # stash 1st leg name to match txtn end leg
           #End processing for first line in procedure
+        else:
+          blnkPosn = 30 + srceLine[30:].find(' ')
+          currLegn = srceLine[30:blnkPosn]
+          # not a segment start, parse current leg name
         # scan All srceLines for position info, legDict may be discarded
         latNS    = srceLine[13:14]
         latDD    = float(srceLine[14:16])
@@ -208,9 +215,8 @@ class fplnMill:
         if ( lonEW == 'W' ):
           lonDec = lonDec * -1
         tNam = tsegName
-        lDic = dict( iden = tsegName, latN = latDec, \
-                     lonE = lonDec, \
-                     altF = int(tAlt) )
+        lDic = dict( iden = tsegName, latN = latDec, lonE = lonDec, \
+                     altF = int(tAlt), rmks='none' )
         # Do not apend Adapted Airport location to legsList
         if not (srceLine[10:12] == 'AA') :
           self.legL.append(lDic)
@@ -220,26 +226,25 @@ class fplnMill:
         if (('Star' in thisType ) & \
             ((typeSpec in thisType )|(typeSpec == 'typeAAll' ))):
           tAlt -= 500
-          if ('Txtn' in thisType ) :
-            # match txtn end leg to star begin leg
-            if (txtnProc == procSpec) :
-              if (tsegName in postFAAN) :
-                progress = 'wantThis'
-          else :
+          # Star-Transitions follow Star in FAA input file, do Star first
+          if (not('Txtn' in thisType ) ):
             # Wanted if either wyptID matches last trk seg or is unspecified
             if ((srceLine[10:12] == 'AA') & (tsegName in icaoSpec)):
               if ((procSpec == postFAAN) | (procSpec == 'procAAll')) :
                 if ((wyptSpec == self.legL[self.legsTale -1]['iden']) \
                  | (wyptSpec == 'wyptAAll')):
                   progress = 'wantThis'
-                  #print('want', tsegName, wyptSpec, self.legL[0]['iden'])
+                  # Stash STAR's beginning leg for match to Star-Txtn
+                  wantPost = postFAAN
+          else :
+            # Star-txtn: txtnProc is postFAAN, match to prev proc's postFAAN
+            if (wantPost in postFAAN):
+              progress = 'wantThis'
         if (('Sid' in thisType ) & \
             (( typeSpec in thisType)|(typeSpec == 'typeAAll' ))):
           tAlt += 500
-          if ('Txtn' in thisType ) :
-            if ((prefFAAN == procSpec) & (tsegName == postFAAN)) :
-              progress = 'wantThis'
-          else :
+          # Sid-Transitions follow Star in FAA input file, do Star first
+          if ( not('Txtn' in thisType )) :
             if ((srceLine[10:12] == 'AA') & (tsegName in icaoSpec)):
               #print( '{:s} Sid tseg:{:s} wypt:{:s}' \
               #       .format(icaoSpec, tsegName, wyptSpec))
@@ -247,6 +252,12 @@ class fplnMill:
                 # Wanted if either wyptID matches first trk seg or unspecified
                 if ((wyptSpec == procBegl) | (wyptSpec == 'wyptAAll')):
                   progress = 'wantThis'
+                  # Stash STAR's beginning leg for match to Star-Txtn
+                  wantPost = postFAAN
+          else :
+            # Sid-txtn: txtnProc is postFAAN, match to prev proc's postFAAN
+            if (wantPost in postFAAN):
+              progress = 'wantThis'
         if (progress == 'wantThis'):
             tTyp = thisType
             pDic = dict( path = self.pathName, ssid = tTyp, \
@@ -650,12 +661,13 @@ class fplnMill:
     pathSfix = self.pthL[p]['path']
     if (pathSfix == ''):
       pathSfix = p
-    pathFId = outpFId + '-' + pathSfix + '-' + rway + '.txt'
+    pathFId = outpFId + '{:s}-{:s}.txt'.format( pathSfix, rway)
     oHdl  = open(pathFId, 'w', 0)
     # remove '-Txtn' suffixes from route types
     if (tSsid == 'Sid-Txtn') :
       tSsid = 'sid'
     if (tSsid == 'Star-Txtn') :
+      print('star-txtn')
       tSsid = 'star'
     if (tSsid == 'sid') :
       # pink shift for departing wpts
@@ -702,7 +714,7 @@ class fplnMill:
   def toATPIBody( self, outpFId):
     ''' given open file ID write ATC-pie dwng  body from legs lists '''
     # create and open list file holding refs to all path files created
-    self.listFId   = outpFId + '.lst'
+    self.listFId   = outpFId + icaoSpec + '.lst'
     self.listHndl  = open(self.listFId, 'w', 0)
     for p in range(self.pthsTale):
       # Each path may apply to more than one rway according to rwaySpec entry
