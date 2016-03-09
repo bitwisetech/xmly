@@ -246,8 +246,6 @@ class fplnMill:
           # Sid-Transitions follow Star in FAA input file, do Star first
           if ( not('Txtn' in thisType )) :
             if ((srceLine[10:12] == 'AA') & (tsegName in icaoSpec)):
-              #print( '{:s} Sid tseg:{:s} wypt:{:s}' \
-              #       .format(icaoSpec, tsegName, wyptSpec))
               if ( ( procSpec == postFAAN) | (procSpec == 'procAAll')) :
                 # Wanted if either wyptID matches first trk seg or unspecified
                 if ((wyptSpec == procBegl) | (wyptSpec == 'wyptAAll')):
@@ -315,8 +313,8 @@ class fplnMill:
                                 ('_Waypoint>' in srceLine)) :
           # skip invalid LatLon and fill Leg Dict and append to path list
           if ( (tLat != 0) & (tLon != 0) ):
-            lDic = dict( iden = tNam, type = tTyp, latN = tLat, \
-                         lonE = tLon, altF = tAlt, indx = wpntIndx)
+            lDic = dict( iden = tNam, type = tTyp, latN = tLat, lonE = tLon, \
+                          altF = tAlt, indx = wpntIndx, rmks = 'none')
             self.legL.append(lDic)
             self.legsTale += 1
           progress = 'seekNextWpnt'
@@ -324,11 +322,10 @@ class fplnMill:
             |(tTyp == '(VECTORS)') ):
           if ( (typeSpec != 'typeAAll') & (ssidType != typeSpec)):
             progress = 'dontWant'
-          #print('313:', rwaySpec, rwayCurr)
           if ( (rwaySpec != 'rwayAAll') & (rwayCurr != rwaySpec)):
             progress = 'dontWant'
           if (progress != 'dontWant'):
-            pDic = dict( path = self.pathName, rway = rwaySpec, ssid = ssidType, \
+            pDic = dict( path = self.pathName, rway = rwayCurr, ssid = ssidType, \
                          legL = self.legL, tale = self.legsTale)
             self.pthL.append(copy.deepcopy(pDic))
             self.pthsTale += 1
@@ -441,7 +438,6 @@ class fplnMill:
         if ( '</route>' in srceLine):
           addnPntn = 0
           for p in range(self.pntsTale):
-            ##print (self.pntsList[p]['iden'], endnLegn)
             if (self.pntsList[p]['iden'] == endnLegn):
               latDec = float(self.pntsList[p]['latS'])
               lonDec = float(self.pntsList[p]['lonS'])
@@ -463,7 +459,6 @@ class fplnMill:
                        legL = self.legL, tale = self.legsTale)
           self.pthL.append(copy.deepcopy(pDic))
           self.pthsTale += 1
-    #print(self.pntsList)
     srceHndl.close()
 
 
@@ -530,7 +525,7 @@ class fplnMill:
             tNam = tsegName + '-' + str(tIdx)
             lDic = dict( iden = tNam, latN = tLat, \
                          lonE = tLon, \
-                         altF = int(tAlt) + 500 * tIdx )
+                         altF = int(tAlt) + 500 * tIdx, rmks = 'none' )
             self.legL.append(lDic)
             self.legsTale += 1
           pDic = dict( path = self.pathName, rway = rwaySpec, ssid = tTyp, \
@@ -614,7 +609,7 @@ class fplnMill:
           progress = 'seekNextPmrk'
         if (( progress == 'seekNextPmrk' ) & ('</Folder>' in srceLine)):
           pDic = dict( path = self.pathName, rway = rwaySpec, ssid = tTyp, \
-                       legL = self.legL, tale = self.legsTale)
+                       legL = self.legL, tale = self.legsTale, rmks = 'none')
           self.pthL.append(copy.deepcopy(pDic))
           self.pthsTale += 1
           progress = 'seekNextPath'
@@ -622,6 +617,7 @@ class fplnMill:
 
   def fromSpec( self, inptFId):
     '''open a comma-space file matching  Sid-Star wypt name to rway in use '''
+    self.specTale = 0
     with open(inptFId, 'r') as specHndl:
       for specLine in specHndl:
         if ( specLine[0] != '#'):
@@ -650,12 +646,12 @@ class fplnMill:
   def toATPIPath( self, outpFId, p, rway):
     ''' call from toATPIBody with hndl, pathIndx to write single path '''
     # Create eight different line styles and seven different colors
-    depClrs = ['#F01414',  '#F01450',  '#F0148C',  '#F014C8', \
-               '#F05014',  '#F05050',  '#F0508C',  '#F050C8', \
-               '#F08C14',  '#F08C50',  '#F08C8C',  '#F08CCC'  ]
-    arrClrs = ['#1414F0',  '#1450F0',  '#148CF0',  '#14C8F0', \
-               '#5014F0',  '#5050F0',  '#508CF0',  '#50C8F0', \
-               '#8C14F0',  '#8C50F0',  '#8C8CF0',  '#8CC8F0'  ]
+    depClrs = ['#F03434',  '#F03470',  '#F034AC',  '#F034E8', \
+               '#F07034',  '#F07070',  '#F070AC',  '#F070E8', \
+               '#F0AC34',  '#F0AC70',  '#F0ACAC',  '#F0ACEC'  ]
+    arrClrs = ['#3434F0',  '#3470F0',  '#34ACF0',  '#34E8F0', \
+               '#7034F0',  '#7070F0',  '#70ACF0',  '#70E8F0', \
+               '#AC34F0',  '#AC70F0',  '#ACACF0',  '#ACE8F0'  ]
     tSsid = (self.pthL[p]['ssid']).lower()
     # construct output fileID from outpFId and pathname / number
     pathSfix = self.pthL[p]['path']
@@ -667,7 +663,6 @@ class fplnMill:
     if (tSsid == 'Sid-Txtn') :
       tSsid = 'sid'
     if (tSsid == 'Star-Txtn') :
-      print('star-txtn')
       tSsid = 'star'
     if (tSsid == 'sid') :
       # pink shift for departing wpts
@@ -690,17 +685,25 @@ class fplnMill:
       if (self.rmks == 'none'):
         self.rmks = ''
         # Arrival first line append proc name
-        if((tSsid == 'star') & (l == 0)):
-          self.rmks = self.pthL[p]['path']
-        #Arrival last line append rwy ID
-        if((tSsid == 'star') & (l == (self.pthL[p]['tale']-2))):
-          self.rmks = rway
-        # Depart  first line append rway ID
-        if((tSsid == 'sid') & (l == 0)):
-          self.rmks = rway
-        #Depart last line append proc name
-        if((tSsid == 'sid') & (l == (self.pthL[p]['tale']-2))):
-          self.rmks = self.pthL[p]['path']
+        if(tSsid == 'star'):
+          if (l == 0):
+            self.rmks = self.pthL[p]['path']
+          #Arrival last line append rwy ID
+          if(l == (self.pthL[p]['tale']-2)):
+            self.rmks = rway
+          ## intermediate legs suggest alt in 100's ft
+          #if( (l != (self.pthL[p]['tale']-2)) & (l != 0)):
+          #  self.rmks = str(int(self.pthL[p]['legL'][l]['altF'] / 100))
+        if(tSsid == 'sid'):
+          # Sid first leg: identify rway
+          if (l == 0):
+            self.rmks = rway
+          if (l == (self.pthL[p]['tale']-2)):
+            #Sid last leg append proc name
+            self.rmks = self.pthL[p]['path']
+          ## intermediate legs suggest alt in 100's ft
+          #if( (l != (self.pthL[p]['tale']-2)) & (l != 0)):
+          #  self.rmks = str(int(self.pthL[p]['legL'][l]['altF'] / 100))
       oL = oL + ' ' + self.rmks
       oHdl.write(oL)
     # Close route segme
@@ -724,10 +727,12 @@ class fplnMill:
       else:
         for s in range(self.specTale):
           if (icaoSpec in self.specL[s]['icao'] ):
-            if (self.specL[s]['type'] == self.pthL[p]['ssid']):
+            if (self.pthL[p]['ssid'] in self.specL[s]['type'] ):
               if ('Star' in self.specL[s]['type']):
                 # Arr list needs to match last wypt
                 l = self.pthL[p]['tale']
+                print (self.specL[s]['type'], self.specL[s]['wypt'], \
+                        self.pthL[p]['legL'][l-1]['iden'])
                 if (self.specL[s]['wypt'] == self.pthL[p]['legL'][l-1]['iden']):
                   # call output path with rway inserted from specfile
                   specRway = self.specL[s]['rway']
@@ -1105,14 +1110,10 @@ class fplnMill:
     ''' given open file Handle:  write fgfs RM xml tail lines '''
     oHdl.write('\n  </route>\n')
     oHdl.write('</PropertyList>\n')
-
-
   #
   # Debug
   #
   def dbugPrnt(self):
-    #print('lName: ', self.legsName, 'lTale: ', self.legsTale, \
-    #      'name: ', self.procSpec, 'pTale: ', self.pthsTale)
     #for elem in self.pthL:
     #  print(elem)
     print(self.pthL)
@@ -1235,7 +1236,7 @@ if __name__ == "__main__":
     if ('ATPI' in genrFmat.upper()):
       if ( specFile != ''):
         tRout.fromSpec( specFile)
-      #tRout.dbgPrnt()
+      #tRout.dbugPrnt()
       tRout.toATPIBody(outpFId)
     if ( 'FGAI' in genrFmat.upper()):
       # open output file
