@@ -6,16 +6,18 @@ for SID/STAR path outlines.
 
 ## Usage
 
-```sh
-python xmly.py -i --inputfid /path/to/InpFile -o --outputfid /path/to/{OutFile|"AUTO"} -f --srceformat  -g --genformat
-`̀``
+```
+python xmly.py -i --inputfid /path/to/InpFile -o --outputfid /path/to/{OutFile|"AUTO"}
+               -f --srceformat  -g --genformat
+```
 
 with options:
 
-`̀``
+
+```
   [-a --altitude ] [-h --help ] [-n --icao] [-p --proc] [-r rway]
   [-s --spec] [-t --type {"Sid"|"Star"}] [-w --waypoint]
-`̀``
+```
 
 ## Source formats
 
@@ -61,6 +63,7 @@ Some editing of the output files may be needed e.g. Correct Altitude, gear, flap
 Open Radar segments tinted blueish for STAR paths, reddish for SIDs you may wish to add labels, etc and customize Runway ID numbering `./samp` directory contains sample source files.
 
 ## Example calls
+
 ```
 python xmly.py -i ./samp/LIME-Sids.kml -o ./test/LIME-Sids-ORDR.xml -f PMKS -g ORDR -n LIME -r 24 -t Sid
 ```
