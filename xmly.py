@@ -666,13 +666,13 @@ class fplnMill:
       tSsid = 'star'
     if (tSsid == 'sid') :
       # pink shift for departing wpts
-      oL = '\n {:s}'.format(depClrs[(p%12)])
+      oL = '\n{:s}'.format(depClrs[(p%12)])
     else:
       # skyblue shift for approach wpts
-      oL = '\n {:s}'.format(arrClrs[(p%12)])
+      oL = '\n{:s}'.format(arrClrs[(p%12)])
     oHdl.write(oL)
     # Write line segments
-    for l in range(self.pthL[p]['tale']-1):
+    for l in range(self.pthL[p]['tale']):
       latN = '{:f}'.format(self.pthL[p]['legL'][l]['latN'])
       lonE = '{:f}'.format(self.pthL[p]['legL'][l]['lonE'])
       # if bogus lat, lon then output by name, else numeric lat, lon
@@ -689,7 +689,7 @@ class fplnMill:
           if (l == 0):
             self.rmks = self.pthL[p]['path']
           #Arrival last line append rwy ID
-          if(l == (self.pthL[p]['tale']-2)):
+          if(l == (self.pthL[p]['tale']-1)):
             self.rmks = rway
           ## intermediate legs suggest alt in 100's ft
           #if( (l != (self.pthL[p]['tale']-2)) & (l != 0)):
@@ -698,7 +698,7 @@ class fplnMill:
           # Sid first leg: identify rway
           if (l == 0):
             self.rmks = rway
-          if (l == (self.pthL[p]['tale']-2)):
+          if (l == (self.pthL[p]['tale']-1)):
             #Sid last leg append proc name
             self.rmks = self.pthL[p]['path']
           ## intermediate legs suggest alt in 100's ft
@@ -1147,7 +1147,7 @@ def printHelp():
   print('  eg:  KIAD, Star, BARIN, 30                                        ')
   print('  eg:  KIAD, Sid, TIICE, 19L                                        ')
   print('                                                                    ')
-  print('Outut format may be one of these:')
+  print('Output format may be one of these:')
   print('  -g FGAI  FlightGgear AI Flightplan for fgdata/AI/FlightPlans      ')
   print('    .. useful for creating e.g local AI SID/STAR traffic            ')
   print('  -g FGLD  FlightGear pseudo Level-D for Route Manager SID/STAR     ')
@@ -1157,6 +1157,8 @@ def printHelp():
   print('    .. save in  /OpenRadar/data/routes/ICAO/ICAO.procedures.xml     ')
   print('  -g RMV1  Flightgear Route Manager Load format   ')
   print('    .. Use FG Route Manager Load button to open the route ')
+  print('  -g ATPI  ATC-Pie DRAW format  ')
+  print('    .. Use the generated ICAO.lst file to load the routes ')
   print('                                                                    ')
   print('  -o some/path/AUTO will construct an appropriate FGLD, FGAI, ORDR  ')
   print('       formatted fileID and create the output file in some/path dir ')
