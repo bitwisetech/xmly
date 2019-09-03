@@ -23,6 +23,7 @@ def normArgs(argv):
   global specFile
   global sequNumb
   global targAlt
+  global tRout
   global txtnSpec
 # fallback values
   icaoSpec = 'icaoAAll'
@@ -142,6 +143,7 @@ class fplnMill:
     self.pthsTale += 1
     srceHndl.close()
 
+#
   def fromARDP( self, inptFId):
     '''open and scan fixed length record text file: FAA STARDP.txt'''
     with open(inptFId, 'r') as srceHndl:
@@ -150,7 +152,9 @@ class fplnMill:
       wantSubt = ''
       #stashed FAAN for matching STAR/SID to transition proc
       wantPost = ''
+      srceNmbr = 0
       for srceLine in srceHndl:
+        srceNmbr += 1  
         # segment name for all srceLines starts at col 30
         blnkPosn = 30 + srceLine[30:].find(' ')
         tsegName = srceLine[30:blnkPosn]
@@ -183,7 +187,9 @@ class fplnMill:
             if ('TRANSITION' in srceLine):
               thisType = 'Star-Txtn'
               # pathname is first wypt, stash proc part of name for matching
-              self.pathName = fullFAAN
+              ##17Je13 self.pathName = fullFAAN
+              ##19Se02 self.pathName = postFAAN
+              self.pathName = prefFAAN + '-' + postFAAN
               # star subTag matches its transition subtag
               txtnProc = postFAAN
               tAlt = 10000
@@ -238,7 +244,11 @@ class fplnMill:
                   wantPost = postFAAN
           else :
             # Star-txtn: txtnProc is postFAAN, match to prev proc's postFAAN
-            if (wantPost in postFAAN):
+            ##if ((wantPost != '') & (tsegName in postFAAN)):
+            ##19Se03 if ((wantPost != '') & (wantPost in postFAAN)):
+            ##19Se03 
+            if ((wantPost != '') & (wantPost in postFAAN)  \
+                                 & (tsegName in postFAAN)):
               progress = 'wantThis'
         if (('Sid' in thisType ) & \
             (( typeSpec in thisType)|(typeSpec == 'typeAAll' ))):
@@ -257,11 +267,72 @@ class fplnMill:
             if (wantPost in postFAAN):
               progress = 'wantThis'
         if (progress == 'wantThis'):
+            #print('want line: ', srceNmbr) 
             tTyp = thisType
             pDic = dict( path = self.pathName, ssid = tTyp, \
               rway = rwaySpec, legL = self.legL, tale = self.legsTale)
             self.pthL.append(copy.deepcopy(pDic))
             self.pthsTale += 1
+    srceHndl.close()
+
+  #
+  # kml input format: kml path created at https://flightplandatabase.com 'Save KML' 
+  def fromKML ( self, inptFId):
+    '''open a flightplandatabase kml track file, append to prcs'''
+    procSpec = (icaoSpec + '-' + typeSpec)
+    tTyp = typeSpec
+    with open(inptFId, 'r') as srceHndl:
+      cordFlag = 0
+      procSpec = ''
+      for srceLine in srceHndl:
+        # Flag to terminate track segment
+        if ('</coordinates>' in srceLine):
+          cordFlag = 0
+        # first Line after Placemark: get procedure name, cancel flag
+        if ('</name>' in srceLine):
+          begnPosn = srceLine.find('<name>') + 6
+          endnPosn = srceLine.find('</name>')
+          tsegName = self.pathName = srceLine[begnPosn:endnPosn]
+        # Flag start of track segment coordinate list
+        if ('<coordinates>' in srceLine):
+          cordFlag = 1
+          pDic = {}
+          self.legL = []
+        # extract track coordinates list, first coords may include the tag itself 
+        if (cordFlag == 1 ):
+          self.legsName = tsegName
+          self.legsTale = 0
+          tSrc = (srceLine.replace('<coordinates>', ''))
+          tSrc = (tSrc.lstrip().rstrip())
+          tMrk = 0
+          tIdx = 0
+          while ((tSrc != '') & (tMrk >= 0)):
+            tIdx += 1
+            tMrk = tSrc.find(',')
+            tLon = float(tSrc[:tMrk])
+            tSrc = tSrc[tMrk+1:]
+            tMrk = tSrc.find(',')
+            tLat = float(tSrc[:tMrk])
+            tSrc = tSrc[tMrk+1:]
+            # alt fileds precede ' ' except last on coord line
+            tMrk = tSrc.find(' ')
+            if (tMrk < 0):
+              tAlt = tSrc
+            else:
+              tAlt = tSrc[:tMrk]
+            tSrc = tSrc[tMrk+1:]
+            tNam = tsegName + '-' + str(tIdx)
+            lDic = dict( iden = tNam, latN = tLat, \
+                         lonE = tLon, \
+                         altF = int(tAlt) + 500 * tIdx, rmks = 'none' )
+            self.legL.append(lDic)
+            self.legsTale += 1
+          pDic = dict( path = self.pathName, rway = rwaySpec, ssid = tTyp, \
+                           legL = self.legL, tale = self.legsTale)
+          self.pthL.append(copy.deepcopy(pDic))
+          #self.pthL.append(dict( path = self.pathName, rway = rwaySpec, \
+          #                 legL = lDic, tale = self.legsTale))
+          self.pthsTale += 1
     srceHndl.close()
 
   #
@@ -460,7 +531,6 @@ class fplnMill:
           self.pthL.append(copy.deepcopy(pDic))
           self.pthsTale += 1
     srceHndl.close()
-
 
   #
   # kml overlay input format: kml path created from tracing a GE Image Overlay
@@ -1024,7 +1094,7 @@ class fplnMill:
   #
   # FlightGear Route Manager Version 1 Output format: for RM 'Load' cmd
   #
-  def toRMV1Head( self, oHdl):
+  def toRMV2Head( self, oHdl):
     ''' given open file Handle:  write fgfs RM xml procedure headlines '''
     deptName = self.legL[0]['iden']
     destName = self.legL[self.legsTale-1]['iden']
@@ -1042,7 +1112,7 @@ class fplnMill:
     oHdl.write('  <version type="int">2</version>\n')
 
 
-  def toRMV1Body( self, oHdl):
+  def toRMV2Body( self, oHdl):
     ''' given open file Handle:  write fgfs RM xml body from legs list '''
     for p in range(self.pthsTale):
       deptName = icaoSpec
@@ -1083,7 +1153,7 @@ class fplnMill:
              .format(self.pthL[p]['legL'][l]['iden'])
         oHdl.write(oL)
         oL = '      <lat type="double">{:07f}</lat>\n' \
-             .format(self.pthL[p]['legL'][l]['altF'])
+             .format(self.pthL[p]['legL'][l]['latN'])
         oHdl.write(oL)
         oL = '      <lon type="double">{:08f}</lon>\n' \
              .format(self.pthL[p]['legL'][l]['lonE'])
@@ -1106,7 +1176,7 @@ class fplnMill:
       oHdl.write(oL)
       oHdl.write('    </wp>\n')
 
-  def toRMV1Tail( self, oHdl):
+  def toRMV2Tail( self, oHdl):
     ''' given open file Handle:  write fgfs RM xml tail lines '''
     oHdl.write('\n  </route>\n')
     oHdl.write('</PropertyList>\n')
@@ -1155,9 +1225,10 @@ def printHelp():
   print('    .. but can create useful SID/STAR paths from FAA/KML files      ')
   print('  -g ORDR  Open Radar for display on OpenRadar ')
   print('    .. save in  /OpenRadar/data/routes/ICAO/ICAO.procedures.xml     ')
-  print('  -g RMV1  Flightgear Route Manager Load format   ')
+  print('  -g RMV2  Flightgear Route Manager Load format   ')
   print('    .. Use FG Route Manager Load button to open the route ')
   print('                                                                    ')
+  print('  -n --icao NAME limit output to routes to/from icao NAME           ')
   print('  -o some/path/AUTO will construct an appropriate FGLD, FGAI, ORDR  ')
   print('       formatted fileID and create the output file in some/path dir ')
   print('  -p --proc PROCID :limit output to specific named STAR/SIDs        ')
@@ -1211,9 +1282,9 @@ if __name__ == "__main__":
       if (( 'ATPI' in genrFmat.upper()) | ( 'ORDR' in genrFmat.upper())):
         outpFId  = outpFId[:subsPosn] + icaoSpec + '-' + typeSpec + '-' \
         +  procSpec  + '-' + wyptSpec + '-' + rwaySpec + '-ORDR.xml'
-      if ( 'RMV1' in genrFmat.upper()):
+      if ( 'RMV2' in genrFmat.upper()):
         outpFId  = outpFId[:subsPosn] + icaoSpec + '-' \
-        + typeSpec + '-' +  procSpec  + '-' +  rwaySpec + '-RMV1.xml'
+        + typeSpec + '-' +  procSpec  + '-' +  rwaySpec + '-RMV2.xml'
       print('Auto outpFId: ' + outpFId)
     # create flightPLanMill
     tRout = fplnMill(icaoSpec + '-' + typeSpec)
@@ -1222,6 +1293,8 @@ if __name__ == "__main__":
       tRout.fromARDP(inptFId)
     if ('ASAL' in srceFmat.upper()):
       tRout.fromASAL(inptFId)
+    if ('KML' in srceFmat.upper()):
+      tRout.fromKML(inptFId)
     if ('LEVD' in srceFmat.upper()):
       tRout.fromLEVD(inptFId)
       #tRout.dbugPrnt()
@@ -1265,12 +1338,12 @@ if __name__ == "__main__":
       tRout.toORDRTail(oHdl)
       oHdl.flush
       oHdl.close
-    if ('RMV1' in genrFmat.upper()):
+    if ('RMV2' in genrFmat.upper()):
       # open output file
       oHdl  = open(outpFId, 'w', 0)
-      tRout.toRMV1Head( oHdl)
-      tRout.toRMV1Body( oHdl)
-      tRout.toRMV1Tail( oHdl)
+      tRout.toRMV2Head( oHdl)
+      tRout.toRMV2Body( oHdl)
+      tRout.toRMV2Tail( oHdl)
       oHdl.flush
       oHdl.close
     # close output file
