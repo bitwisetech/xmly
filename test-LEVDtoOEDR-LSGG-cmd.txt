@@ -1,2 +1,0 @@
-# Change curr dir to OpenRadar/data/routes; Create ./LSGG subdirectory; cmdLine will create procedure file from your Level-D xml file;
-cd /path/to/OpenRadar/data/routes; mkdir LSGG ; python /pathTo/xmly.py -f LEVD -i /apkg/apFgfs/LevDData/navdata/LSGG.xml -g ORDR -o LSGG/LSGG.procedures.xml  -n LSGG
