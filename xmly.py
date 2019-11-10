@@ -37,8 +37,8 @@ def normArgs(argv):
   specFId  = ''
   wyptSpec = 'wyptAAll'
   targAlt  = 0
-  inptFId = '/comm/fpln/kmls/dflt.kml'
-  outpFId = '/comm/fpln/test/{:s}-{:s}-{:s}.xml' \
+  inptFId = 'xmly-test-kmls.kml'
+  outpFId = 'xmly-test-xmls/{:s}-{:s}-{:s}.xml' \
             .format(icaoSpec, typeSpec, procSpec)
   wantHelp = 0
   # get args
@@ -1323,6 +1323,7 @@ def printHelp():
   print('    .. save in  /OpenRadar/data/routes/ICAO/ICAO.procedures.xml     ')
   print('  -g RMV2  Flightgear Route Manager Load format   ')
   print('    .. Use FG Route Manager Load button to open the route ')
+  print('Filter according to input keys:                                                                    ')
   print('  -n --icao NAME limit output to routes to/from icao NAME           ')
   print('  -o some/path/AUTO will construct an appropriate FGLD, FGAI, ORDR  ')
   print('       formatted fileID and create the output file in some/path dir ')
