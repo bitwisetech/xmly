@@ -1379,7 +1379,7 @@ class fplnMill:
         
         oL = '      <Point>\n'
         pathOHdl.write(oL)
-        oL = '        <coordinates> {:07f}, {:07f}, 4000 </coordinates> \n' \
+        oL = '        <coordinates> {:07f},{:07f},4000 </coordinates> \n' \
         .format(self.pthL[p]['legL'][l]['lonE'], (self.pthL[p]['legL'][l]['latN']))
         pathOHdl.write(oL)
         oL = '      </Point>\n'
@@ -1393,6 +1393,9 @@ class fplnMill:
                .format(self.pthL[p]['legL'][l]['altF'])
           pathOHdl.write(oL)
         pathOHdl.write('    </Placemark>\n')
+        
+        
+        
       ##outpHndl.write('    <Placemark>\n')
       ##outpHndl.write('      <type type="string">runway</type>\n')
       ##outpHndl.write('      <departure type="bool">true</departure>\n')
@@ -1405,17 +1408,17 @@ class fplnMill:
       ##outpHndl.write('    </Placemark>\n')
       ##Nv20 pathOHdl.write('  </route>\n')
 
-      outpHndl.write('    <Placemark>\n')
-      outpHndl.write('      <styleUrl>#track</styleUrl>\n')
-      outpHndl.write('      <lineString>\n')
-      outpHndl.write('        </coordinates>\n')
+      pathOHdl.write('    <Placemark>\n')
+      pathOHdl.write('      <styleUrl>#track</styleUrl>\n')
+      pathOHdl.write('      <LineString>\n')
+      pathOHdl.write('        <coordinates>\n')
       for l in range(self.pthL[p]['tale']):
-        oL = '          {:07f}, {:07f}, 4000' \
+        oL = '          {:07f},{:07f},4000\n' \
              .format(self.pthL[p]['legL'][l]['lonE'], (self.pthL[p]['legL'][l]['latN']))
-        outpHndl.write(oL)
-      outpHndl.write('\n        </coordinates>\n')
-      outpHndl.write('      </lineString>\n')
-      outpHndl.write('    </Placemark>\n')
+        pathOHdl.write(oL)
+      pathOHdl.write('        </coordinates>\n')
+      pathOHdl.write('      </LineString>\n')
+      pathOHdl.write('    </Placemark>\n')
 
       pathOHdl.write('  </Folder>\n')
       pathOHdl.write('</Document>\n')
