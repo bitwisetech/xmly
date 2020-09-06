@@ -37,13 +37,8 @@ def normArgs(argv):
   specFId  = ''
   wyptSpec = 'wyptAAll'
   targAlt  = 0
-<<<<<<< HEAD
   inptFId = 'dflt.kml'
   outpFId = '{:s}-{:s}-{:s}.xml' \
-=======
-  inptFId = 'xmly-test-kmls.kml'
-  outpFId = 'xmly-test-xmls/{:s}-{:s}-{:s}.xml' \
->>>>>>> 24cd8fbdbf03474d3a4b5fca45557b6e84048cfc
             .format(icaoSpec, typeSpec, procSpec)
   wantHelp = 0
   # get args
@@ -91,6 +86,8 @@ def normArgs(argv):
 
 #
 class fplnMill:
+
+  global icaoSpec
 
   def __init__( self, tName):
     '''Create empty list and reset tally'''
@@ -286,14 +283,88 @@ class fplnMill:
     srceHndl.close()
 
   #
+  # gpx input format: gpx path created e.g. by exporting from skyvector.com
+  #   Each path is a set of legs between aypoints
+  def fromGPX( self, inptFId):
+    '''open a gpx waypoint list, append to prcs'''
+    global icaoSpec
+    tTyp = typeSpec
+    with open(inptFId, 'r') as srceHndl:
+      #
+      progress = 'justOpnd'
+      leglTale = 0
+      pathTale = 0
+      srceTale = 0
+      pathOpen = 0
+      leglOpen = 0
+      tAlt = 1234
+      tNam = ''
+      tIdx = 0
+      for srceLine in srceHndl:
+        srceTale += 1  
+        # Find end of Image Overlay section: Sid/Star peths follow
+        if ('<rte>' in srceLine) :
+          #print('fromGPX()-<rte>')
+          # Clean Legs for each new path
+          pDic = {}
+          self.legL = []
+          self.legsTale = 0
+          pathTale += 1
+          pathOpen = 1
+        #Each folder segment after GroundOverlay: new Sid/Star path
+        if (pathOpen): 
+          if (('<name>' in srceLine) and (leglOpen == 0)):
+            begnPosn = srceLine.find('<name>') + 6
+            endnPosn = srceLine.find('</name>')
+            self.pathName = srceLine[begnPosn:endnPosn]
+            icaoSpec  = self.pathName
+            #print('pathName: ', self.pathName)
+          if (('<name>' in srceLine) & (  leglOpen)):
+            begnPosn = srceLine.find('<name>') + 6 
+            endnPosn = srceLine.find('</name>')
+            tsegName = srceLine[begnPosn:endnPosn]
+            tNam = tsegName
+            #print('leglName: ', tNam)
+          if (('<rtept' in srceLine)):
+            #print('rtept')
+            leglOpen = 1
+          if (leglOpen):   
+            if (('lat=' in srceLine) & (  leglOpen)):
+              begnPosn = srceLine.find('lat=') + 5
+              endnPosn = srceLine.find('"', begnPosn)
+              #print('line: ', srceTale, ' lat begn:', begnPosn, ' endn: ', endnPosn)
+              tLat =float(srceLine[begnPosn:endnPosn])
+            if (('lon=' in srceLine) & (  leglOpen)):
+              begnPosn = srceLine.find('lon=') + 5
+              endnPosn = srceLine.find('"', begnPosn)
+              #print('line: ', srceTale, ' lon begn:', begnPosn, ' endn: ', endnPosn)
+              tLon =float(srceLine[begnPosn:endnPosn])
+            if (('</rtept>' in srceLine)):
+              #
+              #print('/rtept: ', srceTale, ' lat begn:', begnPosn, ' endn: ', endnPosn)
+              lDic = dict( iden = tNam, latN = tLat, lonE = tLon, \
+                           altF = int(tAlt) + 500 * tIdx )
+              self.legL.append(lDic)
+              self.legsTale += 1
+              leglOpen = 0
+              leglTale += 1 
+          if (('</rte>' in srceLine)):
+            #print('/rte: ', srceTale, ' leglTale:', leglTale, ' pathTale: ', pathTale)
+            pDic = dict( path = self.pathName, rway = rwaySpec, ssid = tTyp, \
+                         legL = self.legL, tale = self.legsTale, rmks = 'none')
+            self.pthL.append(copy.deepcopy(pDic))
+            self.pthsTale += 1
+            pathTale += 1
+            pathopen = 0
+    srceHndl.close()
+
+  #
   # kml input format: kml path created at https://flightplandatabase.com 'Save KML' 
   def fromKML ( self, inptFId):
     '''open a flightplandatabase kml track file, append to prcs'''
-    procSpec = (icaoSpec + '-' + typeSpec)
     tTyp = typeSpec
     with open(inptFId, 'r') as srceHndl:
       cordFlag = 0
-      procSpec = ''
       for srceLine in srceHndl:
         # Flag to terminate track segment
         if ('</coordinates>' in srceLine):
@@ -510,7 +581,7 @@ class fplnMill:
           if (addnPntn == 0):
             # not addpoint: save as waypoint name with bogus lat, lon
             latDec =  99
-            lonDec = 199
+            lonDec =  99
             lDic   = dict( iden = begnLegn, latN = latDec,   lonE = lonDec, \
                            altF = float(0), rmks = self.rmks )
             self.legL.append(lDic)
@@ -547,13 +618,11 @@ class fplnMill:
   #   Deprecated: works for GE paths .. uwse fromKmlPmrk instead
   def fromPATH( self, inptFId):
     '''open a GE kml image olay + track lists file, append to prcs'''
-    procSpec = (icaoSpec + '-' + typeSpec)
     tTyp = typeSpec
     with open(inptFId, 'r') as srceHndl:
       procFlag = 0
       olayFlag = 0
       cordFlag = 0
-      procSpec = ''
       for srceLine in srceHndl:
         # Flag to terminate track segment
         if ((olayFlag == 1 ) & ('</coordinates>' in srceLine)):
@@ -616,13 +685,11 @@ class fplnMill:
           self.pthsTale += 1
     srceHndl.close()
 
-  #
   # kml overlay input format: kml path created from tracing a GE Image Overlay
   #   Each path is a separate named GE folder containingplacemarks
   #   Star/Sid image overlay with 'GroundOverlay' precedes Sid/Star paths
   def fromPMKS( self, inptFId):
     '''open a GE kml image olay + Placemark list, append to prcs'''
-    procSpec = (icaoSpec + '-' + typeSpec)
     tTyp = typeSpec
     with open(inptFId, 'r') as srceHndl:
       progress = 'seekImag'
@@ -633,7 +700,6 @@ class fplnMill:
 
       pmrkFlag = 0
       procFlag = 0
-      procSpec = ''
       for srceLine in srceHndl:
         # Find end of Image Overlay section: Sid/Star peths follow
         if (( progress == 'seekImag') & ('</GroundOverlay' in srceLine)) :
@@ -858,8 +924,11 @@ class fplnMill:
     outpHndl.write(oL)
     oL = '<!-- FGAI FlightGear AI Scenario file generated by xmly.py   -->\n'
     outpHndl.write(oL)
-    oL = '<!--   AI/FlightPlans/{:s}-{:s}.xml file       -->\n\n' \
-    .format(icaoSpec, procSpec)
+    oL = '<!--   copy to AI/FlightPlans/{:s} and -->\n' \
+    .format(outpFId)
+    outpHndl.write(oL)
+    oL = '<!--      create an AI/{:s} scenario  -->\n\n' \
+    .format(icaoSpec)
     outpHndl.write(oL)
     oL = '<!-- Manually edit if multiple Dept/Destn Routes are present  -->\n'
     outpHndl.write(oL)
@@ -872,8 +941,8 @@ class fplnMill:
   def toFGAIBody( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs list '''
     for p in range(self.pthsTale):
-      ktas = 200
-      oL = '\n    <!-- {:s} {:s}:{:s} Rw:{:s} Wp:{:s} -->\n' \
+      ktas = 145
+      oL = '\n    <!-- i:{:s} s:{:s} p:{:s} r:{:s} w:{:s} -->\n' \
            .format(icaoSpec, self.pthL[p]['ssid'], self.pthL[p]['path'], \
                    rwaySpec, wyptSpec )
       outpHndl.write(oL)
@@ -896,10 +965,21 @@ class fplnMill:
           outpHndl.write(oL)
         oL = '      <ktas>{:d}</ktas>\n'.format(ktas)
         outpHndl.write(oL)
-        outpHndl.write('      <flaps-down>false</flaps-down>\n')
+        outpHndl.write('      <flaps-down>true</flaps-down>\n')
         outpHndl.write('      <gear-down>false</gear-down>\n')
         outpHndl.write('      <on-ground>false</on-ground>\n')
         outpHndl.write('    </wpt>\n\n')
+      # Append wp named END
+      outpHndl.write('    <wpt>\n')
+      oL = '      <name>END</name>\n'
+      outpHndl.write(oL)
+      oL = '      <lat type="double">{:07f}</lat>\n' \
+           .format(self.pthL[p]['legL'][l]['latN'])
+      outpHndl.write(oL)
+      oL = '      <lon type="double">{:08f}</lon>\n' \
+           .format(self.pthL[p]['legL'][l]['lonE'])
+      outpHndl.write(oL)
+      outpHndl.write('    </wpt>\n')
       oL = '    <!-- END {:s}    {:s} -->\n\n' \
            .format(icaoSpec, self.pthL[p]['path'])
       outpHndl.write(oL)
@@ -1487,12 +1567,8 @@ def printHelp():
   print('    .. save in  /OpenRadar/data/routes/ICAO/ICAO.procedures.xml     ')
   print('  -g RMV2  Flightgear Route Manager Load format   ')
   print('    .. Use FG Route Manager Load button to open the route ')
-<<<<<<< HEAD
   print('                                                                    ')
   print('Filter on data in out may be :')
-=======
-  print('Filter according to input keys:                                                                    ')
->>>>>>> 24cd8fbdbf03474d3a4b5fca45557b6e84048cfc
   print('  -n --icao NAME limit output to routes to/from icao NAME           ')
   print('  -o some/path/AUTO will construct an appropriate FGLD, FGAI, ORDR  ')
   print('       formatted fileID and create the output file in some/path dir ')
@@ -1586,13 +1662,14 @@ if __name__ == "__main__":
         + typeSpec + '-' +  procSpec  + '-' +  rwaySpec + '-RMV2.xml'
       print(('Auto outpFId: ' + outpFId))
     # create flightPLanMill
-    print('tRout on:', (icaoSpec + '-' + typeSpec) )
     tRout = fplnMill(icaoSpec + '-' + typeSpec)
     # run input file scanner
     if ('ARDP' in srceFmat.upper()):
       tRout.fromARDP(inptFId)
     if ('ASAL' in srceFmat.upper()):
       tRout.fromASAL(inptFId)
+    if ('GPX' in srceFmat.upper()):
+      tRout.fromGPX(inptFId)
     if ('KML' in srceFmat.upper()):
       tRout.fromKML(inptFId)
     if ('LEVD' in srceFmat.upper()):
@@ -1602,9 +1679,8 @@ if __name__ == "__main__":
       tRout.fromORDR(inptFId)
     if ('PATH' in srceFmat.upper()):
       tRout.fromPATH(inptFId)
-    if ('PMKS' in srceFmat.upper()):
-      tRout.fromPMKS(inptFId)
-    # run output frmatter
+    print('Route created for icao <=> type: ', (icaoSpec + ' <=> ' + typeSpec) )
+    # run output formatter
     #to ATPI creates multiple files: FId is passed, not handle
     if ('ATPI' in genrFmat.upper()):
       if ( specFId  != ''):
