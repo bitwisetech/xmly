@@ -185,18 +185,18 @@ class fplnMill:
         #
         # 'AA' : Adapted Airport, applies back to sequ start
         if ('AA' in srceLine[10:12] ) :
-            adApIden = fnapIden
-            if (( adApIden in icaoSpec) | (icaoSpec == 'icaoAAll')) :
-              # maybe more than one AA recd, flag for leglist dump
-              wantFlag = 'wantThis'
-              # gate to remember for txtns
-              adApGate = 'match'
+          adApIden = fnapIden
+          if (( adApIden in icaoSpec) | (icaoSpec == 'icaoAAll')) :
+            # maybe more than one AA recd, flag for leglist dump
+            wantFlag = 'wantThis'
+            # gate to remember for txtns
+            adApGate = 'match'
         # col39: has dot: first record of a new FAA proc with pfixIden.sfixIden Name (txtn) 
         if ('.' in srceLine[38:]):
           # new proc/path may be associated with prec adAp
           progress = 'bnewProc'
-          #self.legL = []
-          #self.legsTale = 0
+          self.legL = []
+          self.legsTale = 0
           #
           # parse procedure into preface, post and full FAA name
           stopPosn = srceLine.find('.')
@@ -257,7 +257,7 @@ class fplnMill:
         if ( lonEW == 'W' ):
           lonDec = lonDec * -1
         tNam = adApIden
-        lDic = dict( iden = adApIden, latN = latDec, lonE = lonDec, \
+        lDic = dict( iden = fnapIden, latN = latDec, lonE = lonDec, \
                      altF = int(tAlt), rmks='none' )
         # Do not apend Adapted Airport location to legsList
         if not (srceLine[10:12] == 'AA') :
@@ -277,7 +277,7 @@ class fplnMill:
             # waypoint list precedes AA Airport type, accum leg list 
             # Wanted if either wyptID matches last trk seg or is unspecified
             ## ((srceLine[10:12] == 'AA') & (adApIden in icaoSpec)): 20Se09
-            if (                            (adApIden in icaoSpec)):
+            if ( ('match' in adApGate ) & (fnapIden in sfixIden) ):
               if ((procSpec == sfixIden) | (procSpec == 'procAAll')) :
                 if ((wyptSpec == self.legL[self.legsTale -1]['iden']) \
                  | (wyptSpec == 'wyptAAll')):
