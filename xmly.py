@@ -152,7 +152,7 @@ class fplnMill:
     srceHndl.close()
 
 #
-  def fnewARDP( self, inptFId):
+  def fromARDP( self, inptFId):
     '''open and scan fixed length record text file: FAA STARDP.txt'''
     with open(inptFId, 'r', encoding="ISO-8859-1") as srceHndl:
       srceNmbr = 0
@@ -165,9 +165,12 @@ class fplnMill:
       for srceLine in srceHndl:
         progress = 'nxtlSrce'
         srceNmbr += 1
+        #dbug trap
+        if (srceNmbr == 20540):
+          print('trap srceNmbr: ', srceNmbr)
         # FAA proc path precedes Adap Airport Iden so run all leg lists
         # preset as unwanted, accum leg points until 'AA'
-        wantFlag = 'dontWant'
+        pathGate = 'dontWant'
         # FAA Sequence number Snnnn == Star[-Txtn] Dnnnn == Sid[-Txtn]
         sequNmbr = srceLine[0:6]
         if (currSequ != sequNmbr):
@@ -179,18 +182,23 @@ class fplnMill:
         blnkPosn = 11 + srceLine[11:].find(' ')
         faclType = srceLine[10:blnkPosn]
         #
-        # all kinds Iden starts at col 30, get Iden  before  'AA' check
-        blnkPosn = 30 + srceLine[30:].find(' ')
-        fnapIden = srceLine[30:blnkPosn]
-        #
         # 'AA' : Adapted Airport, applies back to sequ start
         if ('AA' in srceLine[10:12] ) :
-          adApIden = fnapIden
-          if (( adApIden in icaoSpec) | (icaoSpec == 'icaoAAll')) :
+          # scan current line's Iden, only save wanted Iden
+          blnkPosn = 30 + srceLine[30:].find(' ')
+          if ( (( srceLine[30:blnkPosn] ) in icaoSpec) | (icaoSpec == 'icaoAAll')) :
+            # In case of past departure leglist, need last wpnt's fnapIden
+            fnapPrev = fnapIden
+            fnapIden = srceLine[30:blnkPosn]
+            adApIden = fnapIden
             # maybe more than one AA recd, flag for leglist dump
-            wantFlag = 'wantThis'
+            pathGate = 'wantPath'
             # gate to remember for txtns
             adApGate = 'match'
+        else:   
+          # scan fnapIden for non incl 'AA'
+          blnkPosn = 30 + srceLine[30:].find(' ')
+          fnapIden = srceLine[30:blnkPosn]
         # col39: has dot: first record of a new FAA proc with pfixIden.sfixIden Name (txtn) 
         if ('.' in srceLine[38:]):
           # new proc/path may be associated with prec adAp
@@ -211,11 +219,15 @@ class fplnMill:
           if ('D' in srceLine[:1]):
             if ('TRANSITION' in srceLine):
               thisType = 'Sid-Txtn'
+              ##11Se self.pathName = sfixIden + '.' + fnapIden
+              ##11Se 
               self.pathName = fullIden
               tAlt = 5000
             else:
               thisType = 'Sid'
               # make up Sid name from first wypt and FAA procSpec
+              ##20Se11
+              ##11Se self.pathName = sfixIden + '.' + fnapIden
               self.pathName = fnapIden + '.' + pfixIden
               tAlt = 250
           if ('S' in srceLine[:1]):
@@ -226,14 +238,14 @@ class fplnMill:
               # pathname is first wypt, stash proc part of name for matching
               ##17Je13 self.pathName = fullIden
               ##19Se02 self.pathName = sfixIden
-              self.pathName = fullIden
+              ##20Se11 self.pathName = sfixIden + '.' + fnapIden
               # star subTag matches its transition subtag
               txtnProc = sfixIden
               ## 19Se08  ???? maybetxtnProc = prefsfixIden
               tAlt = 10000
             else :
               thisType = 'Star'
-              self.pathName = fullIden
+              ##20Se11 self.pathName = sfixIden + '.' + fnapIden
               tAlt = 5000
               # stash 1st leg name to match txtn end leg
           #End processing anewSequ for first line in procedure
@@ -266,12 +278,12 @@ class fplnMill:
         # Star, Star-Transitions are first in FAA input file
         if (('Star' in thisType ) & \
             ((typeSpec in thisType )|(typeSpec == 'typeAAll' ))):
-          tAlt -= 500
           #
           if (   ('Txtn' in thisType ) ):
             # Star-txtn: txtnProc is sfixIden, match to prev proc's sfixIden
             if (('match' in adApGate ) and (fnapIden in sfixIden )) :
-              wantFlag = 'wantThis'
+              tAlt -= 150
+              pathGate = 'wantStTx'
           #
           if (not('Txtn' in thisType ) ):
             # waypoint list precedes AA Airport type, accum leg list 
@@ -281,39 +293,48 @@ class fplnMill:
               if ((procSpec == sfixIden) | (procSpec == 'procAAll')) :
                 if ((wyptSpec == self.legL[self.legsTale -1]['iden']) \
                  | (wyptSpec == 'wyptAAll')):
-                  wantFlag = 'wantThis'
-                  # Stash STAR's beginning leg for match to Star-Txtn
-                  wantPost = sfixIden
+                 tAlt -= 20
+                 pathGate = 'wantStar'
+                 # Stash STAR's beginning leg for match to Star-Txtn
+                 wantPost = sfixIden
         if (('Sid' in thisType ) & \
             (( typeSpec in thisType)|(typeSpec == 'typeAAll' ))):
-          tAlt += 500
-          if ( not('Txtn' in thisType )) :
-            if (  ( 'match' in adApGate ) & (fnapIden in sfixIden) \
-                & (( procSpec == sfixIden) | (procSpec == 'procAAll')) \
-                & (( procBegl in wyptSpec ) | ('wyptAAll' in wyptSpec))) :
-              wantFlag = 'wantThis'
-              # Stash STAR's beginning leg for match to Star-Txtn
-              wantPost = sfixIden
-          else :
+          if ( ('Txtn' in thisType )) :
             # Sid-txtn: txtnProc is sfixIden, match to prev proc's sfixIden
             #if ((sequAdAp in  currLegn) ):
             if (('match' in adApGate ) and  (fnapIden in sfixIden )) :
-              wantFlag = 'wantThis'
-        if (   ( srceLine[10:12] == 'AA') & \
+              tAlt += 1000
+              pathGate = 'wantSdtx'
+          else :
+            # Sid non-Txtn
+            if (  ( 'match' in adApGate ) & (fnapIden in sfixIden) \
+            ##if (  ( 'match' in adApGate ) & (fnapPrev in sfixIden) \
+                & (( procSpec == sfixIden) | (procSpec == 'procAAll')) \
+                & (( procBegl in wyptSpec ) | ('wyptAAll' in wyptSpec))) :
+              tAlt += 150
+              pathGate = 'AAdidSid'
+              # Stash STAR's beginning leg for match to Star-Txtn
+              wantPost = sfixIden
+        if ( ( srceLine[10:12] == 'AA') & \
                ( not (( adApIden in icaoSpec) | (icaoSpec == 'icaoAAll'))))  :
-          wantFlag = 'dApRecd'
-        if (wantFlag == 'wantThis'):
+          pathGate = 'dApRecd'
+        if ( 'want' in pathGate ):
             #print('want line: ', srceNmbr)
             tTyp = thisType
+            # Arrival procedures differentiate by last wpnt's fnapIden 
+            if ('S' in srceLine[:1]):
+              ##20Se11 
+              self.pathName = sfixIden + '.' + fnapPrev
             pDic = dict( path = self.pathName, ssid = tTyp, \
               rway = rwaySpec, legL = self.legL, tale = self.legsTale)
+            #print('path at srce: ', srceNmbr, ' sequ: ', sequNmbr, ' gate: ', pathGate)
             self.pthL.append(copy.deepcopy(pDic))
             self.pthsTale += 1
-            wantFlag == 'wantDone'
+            pathGate == 'pathDone'
     srceHndl.close()
 
 #
-  def fromARDP( self, inptFId):
+  def fprvARDP( self, inptFId):
     '''open and scan fixed length record text file: FAA STARDP.txt'''
     with open(inptFId, 'r', encoding="ISO-8859-1") as srceHndl:
       currSequ = '     '
@@ -413,7 +434,7 @@ class fplnMill:
               if ((procSpec == sfixIden) | (procSpec == 'procAAll')) :
                 if ((wyptSpec == self.legL[self.legsTale -1]['iden']) \
                  | (wyptSpec == 'wyptAAll')):
-                  progress = 'wantThis'
+                  progress = 'wantPath'
                   # Stash STAR's beginning leg for match to Star-Txtn
                   wantPost = sfixIden
           if (   ('Txtn' in thisType ) ):
@@ -423,7 +444,7 @@ class fplnMill:
             ##20Se07 if ((wantPost != '') & (wantPost in sfixIden) & (adApIden in sfixIden)):
             ##if ((sequAdAp in  currLegn) ):
               if (wantPost in pfixIden):
-                progress = 'wantThis'
+                progress = 'wantPath'
         if (('Sid' in thisType ) & \
             (( typeSpec in thisType)|(typeSpec == 'typeAAll' ))):
           tAlt += 500
@@ -435,7 +456,7 @@ class fplnMill:
               if ( ( procSpec == sfixIden) | (procSpec == 'procAAll')) :
                 # Wanted if either wyptID matches first trk seg or unspecified
                 if ((wyptSpec == procBegl) | (wyptSpec == 'wyptAAll')):
-                  progress = 'wantThis'
+                  progress = 'wantPath'
                   # Stash STAR's beginning leg for match to Star-Txtn
                   wantPost = sfixIden
           else :
@@ -443,8 +464,8 @@ class fplnMill:
             #
             if (wantPost in pfixIden):
             #if ((sequAdAp in  currLegn) ):
-              progress = 'wantThis'
-        if (progress == 'wantThis'):
+              progress = 'wantPath'
+        if (progress == 'wantPath'):
             #print('want line: ', srceNmbr)
             tTyp = thisType
             pDic = dict( path = self.pathName, ssid = tTyp, \
@@ -1365,13 +1386,15 @@ class fplnMill:
       ##if (( skelFId  != '' ) & (skelSsid == 'Sid') ):
       if (( skelFId  != '' ) & ( 'Sid' in skelSsid  ) ):
         #Sid uses first legName in legList and Sid title == Path name
+        #skelLegn = (self.pthL[p]['legL'][l]['iden'])
+        #
         skelLegn = (self.pthL[p]['path'])
       ##if (( skelFId  != '' ) & (skelSsid == 'Sid') ):
       if (( skelFId  != '' ) & ('Star' in skelSsid ) ):
         #LastFirst legName in legList, save it
-        #skelLegn = (self.pthL[p]['legL'][l]['iden'])
-        skelLegn = '{:s}.{:s}'.format ((self.pthL[p]['path']), \
-                                       (self.pthL[p]['legL'][l]['iden']))
+        #        skelLegn = (self.pthL[p]['legL'][l]['iden'])
+        #
+        skelLegn = '{:s}'.format ((self.pthL[p]['path']) )
       if (( skelFId  != '' ) & (( 'Star' in skelSsid ) | ( 'Sid' in skelSsid ))) :
         # write line to skeleton spec file
         oL = '{:s}, {:s}, {:s}, Rwy\n'.format((icaoSpec), \
@@ -1841,8 +1864,7 @@ if __name__ == "__main__":
     tRout = fplnMill(icaoSpec + '-' + typeSpec)
     # run input file scanner
     if ('ARDP' in srceFmat.upper()):
-      #tRout.fromARDP(inptFId)
-      tRout.fnewARDP(inptFId)
+      tRout.fromARDP(inptFId)
     if ('ASAL' in srceFmat.upper()):
       tRout.fromASAL(inptFId)
     if ('GPX' in srceFmat.upper()):
