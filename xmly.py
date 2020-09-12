@@ -100,6 +100,7 @@ class fplnMill:
     self.pthsTale = 0
     self.specL = []
     self.specTale = 0
+##   
 
   #
   # asalink format input files: fixed record text from web query
@@ -131,11 +132,13 @@ class fplnMill:
     self._Rmks = tLine[57:]
     return (dict(iden=self. _Iden, freq=self._Freq, dist=self._Dist, \
                  altF=tAlt, latN=self._LatN, lonE=self._LonE, rmks=self._Rmks))
+##   
 
   def addaLegd( self, tDict):
     ''' Append a sinle leg dictionary to legs list'''
     self.legL.append(tDict)
     self.legsTale += 1
+##   
 
   def fromASAL( self, inptFId):
     '''open a fixed length record text file pasted from rfinder.asalink.net'''
@@ -150,6 +153,7 @@ class fplnMill:
     self.pthL.append(copy.deepcopy(pDic))
     self.pthsTale += 1
     srceHndl.close()
+ ##   
 
 #
   def fromARDP( self, inptFId):
@@ -332,149 +336,9 @@ class fplnMill:
             self.pthsTale += 1
             pathGate == 'pathDone'
     srceHndl.close()
+##
 
-#
-  def fprvARDP( self, inptFId):
-    '''open and scan fixed length record text file: FAA STARDP.txt'''
-    with open(inptFId, 'r', encoding="ISO-8859-1") as srceHndl:
-      currSequ = '     '
-      progress = 'openFile'
-      wantSubt = ''
-      #stashed FAAN for matching STAR/SID to transition proc
-      wantPost = ''
-      srceNmbr = 0
-      currSequ = 'nnnnn'
-      sequAdAp = 'undfnd'
-      for srceLine in srceHndl:
-        srceNmbr += 1
-        currSequ = srceLine[0:6]
-        #print('currSequ: ', currSequ)
-        # segment name for all srceLines starts at col 30
-        blnkPosn = 30 + srceLine[30:].find(' ')
-        adApIden = srceLine[30:blnkPosn]
-        # col39: FAA Name NNN.NNN name is in first record of a proc path
-        if ('.' in srceLine[38:]):
-          progress = 'anewSequ'
-          self.legL = []
-          self.legsTale = 0
-          # parse procedure into preface, post and full FAA name
-          stopPosn = srceLine.find('.')
-          blnkPosn = stopPosn + srceLine[stopPosn:].find(' ')
-          pfixIden = srceLine[38:stopPosn]
-          sfixIden = srceLine[(stopPosn+1):blnkPosn]
-          fullIden = srceLine[38:blnkPosn]
-          procBegl = adApIden
-          # Get proc tye from 1st char and TX string
-          if ('D' in srceLine[:1]):
-            if ('TRANSITION' in srceLine):
-              thisType = 'Sid-Txtn'
-              self.pathName = fullIden
-              tAlt = 5000
-            else:
-              thisType = 'Sid'
-              # make up Sid name from first wypt and FAA procSpec
-              self.pathName = adApIden + '.' + pfixIden
-              tAlt = 250
-          if ('S' in srceLine[:1]):
-            # For arrival pathName is second part of FAA name
-            starProc = sfixIden
-            if ('TRANSITION' in srceLine):
-              thisType = 'Star-Txtn'
-              # pathname is first wypt, stash proc part of name for matching
-              ##17Je13 self.pathName = fullIden
-              ##19Se02 self.pathName = sfixIden
-              self.pathName = pfixIden + '.' + sfixIden
-              # star subTag matches its transition subtag
-              txtnProc = sfixIden
-              ## 19Se08  ???? maybetxtnProc = prefsfixIden
-              tAlt = 10000
-            else :
-              thisType = 'Star'
-              self.pathName = sfixIden
-              tAlt = 5000
-              # stash 1st leg name to match txtn end leg
-          #End processing for first line in procedure
-        else:
-          blnkPosn = 30 + srceLine[30:].find(' ')
-          currLegn = srceLine[30:blnkPosn]
-          # not a segment start, parse current leg name
-        # scan All srceLines for position info, legDict may be discarded
-        latNS    = srceLine[13:14]
-        latDD    = float(srceLine[14:16])
-        latMM    = float(srceLine[16:18])
-        latSS    = float(srceLine[18:20])
-        latSD    = float(srceLine[20:21])
-        lonEW    = srceLine[21:22]
-        lonDD    = float(srceLine[22:25])
-        lonMM    = float(srceLine[25:27])
-        lonSS    = float(srceLine[27:29])
-        lonSD    = float(srceLine[29:30])
-        latDec   = latDD + latMM/60 + latSS/3600 + latSD/36000
-        lonDec   = lonDD + lonMM/60 + lonSS/3600 + lonSD/36000
-        if ( latNS == 'S' ):
-          latDec = latDec * -1
-        if ( lonEW == 'W' ):
-          lonDec = lonDec * -1
-        tNam = adApIden
-        lDic = dict( iden = adApIden, latN = latDec, lonE = lonDec, \
-                     altF = int(tAlt), rmks='none' )
-        # Do not apend Adapted Airport location to legsList
-        if not (srceLine[10:12] == 'AA') :
-          self.legL.append(lDic)
-          self.legsTale += 1
-        # preset as unwanted, adjust alts anyway, then decide if wanted
-        progress = 'dontWant'
-        if (('Star' in thisType ) & \
-            ((typeSpec in thisType )|(typeSpec == 'typeAAll' ))):
-          tAlt -= 500
-          # Star-Transitions follow Star in FAA input file, do Star first
-          if (not('Txtn' in thisType ) ):
-            # Wanted if either wyptID matches last trk seg or is unspecified
-            if ((srceLine[10:12] == 'AA') & (adApIden in icaoSpec)):
-              if ((procSpec == sfixIden) | (procSpec == 'procAAll')) :
-                if ((wyptSpec == self.legL[self.legsTale -1]['iden']) \
-                 | (wyptSpec == 'wyptAAll')):
-                  progress = 'wantPath'
-                  # Stash STAR's beginning leg for match to Star-Txtn
-                  wantPost = sfixIden
-          if (   ('Txtn' in thisType ) ):
-             # Star-txtn: txtnProc is sfixIden, match to prev proc's sfixIden
-            ##if ((wantPost != '') & (adApIden in sfixIden)):
-            ##19Se03 if ((wantPost != '') & (wantPost in sfixIden)) & (adApIden in sfixIden)):
-            ##20Se07 if ((wantPost != '') & (wantPost in sfixIden) & (adApIden in sfixIden)):
-            ##if ((sequAdAp in  currLegn) ):
-              if (wantPost in pfixIden):
-                progress = 'wantPath'
-        if (('Sid' in thisType ) & \
-            (( typeSpec in thisType)|(typeSpec == 'typeAAll' ))):
-          tAlt += 500
-          # Sid-Transitions follow Star in FAA input file, do Star first
-          if ( not('Txtn' in thisType )) :
-            if ((srceLine[10:12] == 'AA') & (adApIden in icaoSpec)):
-              # Stash latest adapted airport field for gating txtn rcds
-              sequAdAp = adApIden
-              if ( ( procSpec == sfixIden) | (procSpec == 'procAAll')) :
-                # Wanted if either wyptID matches first trk seg or unspecified
-                if ((wyptSpec == procBegl) | (wyptSpec == 'wyptAAll')):
-                  progress = 'wantPath'
-                  # Stash STAR's beginning leg for match to Star-Txtn
-                  wantPost = sfixIden
-          else :
-            # Sid-txtn: txtnProc is sfixIden, match to prev proc's sfixIden
-            #
-            if (wantPost in pfixIden):
-            #if ((sequAdAp in  currLegn) ):
-              progress = 'wantPath'
-        if (progress == 'wantPath'):
-            #print('want line: ', srceNmbr)
-            tTyp = thisType
-            pDic = dict( path = self.pathName, ssid = tTyp, \
-              rway = rwaySpec, legL = self.legL, tale = self.legsTale)
-            self.pthL.append(copy.deepcopy(pDic))
-            self.pthsTale += 1
-    srceHndl.close()
   #
-
   # gpx input format: gpx path created e.g. by exporting from skyvector.com
   #   Each path is a set of legs between aypoints
   def fromGPX( self, inptFId):
@@ -549,6 +413,7 @@ class fplnMill:
             pathTale += 1
             pathopen = 0
     srceHndl.close()
+##   
 
   #
   # kml input format: kml path created at https://flightplandatabase.com 'Save KML'
@@ -607,6 +472,7 @@ class fplnMill:
           #                 legL = lDic, tale = self.legsTale))
           self.pthsTale += 1
     srceHndl.close()
+##   
 
   #
   # Level-D input format: xml file from navigraph subscription
@@ -696,6 +562,7 @@ class fplnMill:
           endnPosn = srceLine.find('</Altitude>')
           tAlt = int(srceLine[begnPosn:endnPosn])
     srceHndl.close()
+##   
 
 
   # OpenRadar input: an optional list of name points then xml path specs
@@ -804,6 +671,7 @@ class fplnMill:
           self.pthL.append(copy.deepcopy(pDic))
           self.pthsTale += 1
     srceHndl.close()
+##   
 
   #
   # kml overlay input format: kml path created from tracing a GE Image Overlay
@@ -876,6 +744,7 @@ class fplnMill:
           #                 legL = lDic, tale = self.legsTale))
           self.pthsTale += 1
     srceHndl.close()
+##   
 
   # kml overlay input format: kml path created from tracing a GE Image Overlay
   #   Each path is a separate named GE folder containingplacemarks
@@ -952,6 +821,7 @@ class fplnMill:
           self.pthsTale += 1
           progress = 'seekNextPath'
     srceHndl.close()
+##   
 
   def fromSpec( self, inptFId):
     '''open a comma-space file matching  Sid-Star wypt name to rway in use '''
@@ -993,6 +863,7 @@ class fplnMill:
             self.specL.append(copy.deepcopy(sDic))
             self.specTale += 1
     specHndl.close()
+##   
 
   #
   # ATC-pie output format: for creating path displays
@@ -1069,6 +940,7 @@ class fplnMill:
     self.listHndl.write(self.listLine)
     outpHndl.flush
     outpHndl.close
+##   
 
   def toATPIBody( self, outpFId):
     ''' given open file ID write ATC-pie dwng  body from legs lists '''
@@ -1101,6 +973,7 @@ class fplnMill:
                   tRout.toATPIPath( outpFId, p, specRway  )
     self.listHndl.flush
     self.listHndl.close
+##   
 
   #
   # FlightGear AI Scenario 1 Output format: for AI/FlightPlans directory
@@ -1128,7 +1001,7 @@ class fplnMill:
     outpHndl.write(oL)
     outpHndl.write('\n<PropertyList>\n')
     outpHndl.write('  <flightplan>\n')
-
+##   
 
   def toFGAIBody( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs list '''
@@ -1175,11 +1048,13 @@ class fplnMill:
       oL = '    <!-- END {:s}    {:s} -->\n\n' \
            .format(icaoSpec, self.pthL[p]['path'])
       outpHndl.write(oL)
+##   
 
   def toFGAITail( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml tail lines '''
     outpHndl.write('\n  </flightplan>\n')
     outpHndl.write('</PropertyList>\n')
+##   
 
   #
   # FlightGear level-D output format: for Sid Star files for RM SID/STAR cmd
@@ -1199,6 +1074,7 @@ class fplnMill:
     outpHndl.write('<ProceduresDB version="FGLD by xmlly.py">\n')
     oL = '  <Airport ICAOcode="{:s}">\n'.format(icaoSpec)
     outpHndl.write(oL)
+##   
 
   def toFGLDBody( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs lists '''
@@ -1264,11 +1140,13 @@ class fplnMill:
         outpHndl.write(oL)
       oL = '    </{:s}>\n'.format(self.pthL[p]['ssid'])
       outpHndl.write(oL)
+##   
 
   def toFGLDTail( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml tail lines '''
     outpHndl.write('  </Airport>\n')
     outpHndl.write('\n</ProceduresDB>\n')
+##   
 
   #
   # OpenRadar output format: for creating OR path displays
@@ -1284,6 +1162,7 @@ class fplnMill:
     outpHndl.write(oL)
     oL = '<!-- cmdl: {:s} -->\n'.format(str(sys.argv[1:]) )
     outpHndl.write(oL)
+##   
 
   def toORDRPath( self, outpHndl, p, rway):
     ''' call from toORDRBody with hndl, pathIndx, rway to write single path '''
@@ -1364,6 +1243,7 @@ class fplnMill:
       outpHndl.write(oL)
     # Close route segment
     outpHndl.write('  </route>\n')
+##   
 
   def toORDRBody( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs lists '''
@@ -1428,10 +1308,12 @@ class fplnMill:
                   # call output path with rway inserted from specfile
                   specRway = self.specL[s]['rway']
                   tRout.toORDRPath( outpHndl, p, specRway )
+##   
 
   def toORDRTail( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml tail lines '''
     outpHndl.write('\n</routes>\n')
+##   
 
   #
   # FlightGear Route Manager Version 2 Output format: for RM 'Load' cmd
@@ -1454,7 +1336,7 @@ class fplnMill:
     outpHndl.write(oL)
     outpHndl.write('\n<PropertyList>\n')
     outpHndl.write('  <version type="int">2</version>\n')
-
+##   
 
   def toRMV2Body( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs list '''
@@ -1553,13 +1435,15 @@ class fplnMill:
       pathOHdl.write('</PropertyList>\n')
       pathOHdl.flush
       pathOHdl.close
+##   
 
   def toRMV2Tail( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml tail lines '''
     #outpHndl.write('\n  </route>\n')
     outpHndl.write('</PropertyList>\n')
-#
+##   
 
+#
   def toKMLSBody( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs list '''
     for p in range(self.pthsTale):
@@ -1713,6 +1597,7 @@ class fplnMill:
       pathOHdl.write('</kml>\n')
       pathOHdl.flush
       pathOHdl.close
+##   
 
   #
   # Debug
@@ -1721,6 +1606,7 @@ class fplnMill:
     #for elem in self.pthL:
     #  print(elem)
     print((self.pthL))
+##   
 
 def printHelp():
   print('\n xmly.py is a utility for generating various format route files   ')
@@ -1817,6 +1703,7 @@ def printHelp():
   print('python xmly.py -i pathto/FAAData/STARDP.txt pathto/myprocs/AUTO \
       -f ARDP -g FGAI -n KBOS -p ROBUC1 -t Star -r 04R -w JOBEE             ')
   print('')
+##   
 
 #
 # main
@@ -1934,3 +1821,4 @@ if __name__ == "__main__":
       outpHndl.flush
       outpHndl.close
     # close output file
+##   
