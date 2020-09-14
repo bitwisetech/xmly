@@ -1003,12 +1003,119 @@ class fplnMill:
     outpHndl.write('  <flightplan>\n')
 ##   
 
+  def toFGAIAnwb( self, outpHndl):
+    ''' given open file Handle:  write fgfs RM xml body from legs list '''
+    pathNumb = 0
+    for p in range(self.pthsTale):
+      pathNumb += 1
+      ##
+      pathSsid = self.pthL[p]['ssid']
+      scanPath = self.pthL[p]['path']
+      if ('.' in scanPath ):
+        pathProc = scanPath
+      else :
+        pathProc = self.pthL[p]['legL'][destIndx]['iden'] + '.' + scanPath
+      #      scenOFId = 'scen/' + icaoSpec + '-' + str(pathNumb) \
+      #                   + '-' + scanPath  + '-ai.xml'
+      #
+      scenOFId = icaoSpec + '/SCEN/' + icaoSpec + '-' + pathSsid + '-' +  pathProc \
+                                     + '-' + str(pathNumb) + '-ai.xml'
+      ##, \
+      scenOHdl = open( scenOFId, 'w', 1)
+      ##
+      scenOHdl.write('<?xml version="1.0"?>\n')
+      scenOHdl.write('<PropertyList>\n')
+      scenOHdl.write('  <scenario>\n')
+      scenOHdl.write('\n')
+      oL =           '    <name>{:s}-{:d}-{:s} </name>\n'\
+                       .format( icaoSpec, pathNumb, pathSsid)
+      scenOHdl.write(oL)
+      scenOHdl.write('    <description>\n')
+      oL =           '      {:s}-{:s}\n'.format(pathSsid, scanPath)
+      scenOHdl.write(oL)
+      scenOHdl.write('      FG AI Scenario by xmly \n')
+      scenOHdl.write('    </description>\n')
+      scenOHdl.write('    <entry>\n')
+      oL =           '      <callsign>ai-{:s}</callsign>\n'.format(pathProc)
+      scenOHdl.write(oL)
+      scenOHdl.write('      <type>aircraft</type>\n')
+      scenOHdl.write('      <class>jet_transport</class>\n')
+      scenOHdl.write('      <model>AI/Aircraft/747/744-Delta.xml</model>\n')
+      oL =           '      <flightplan>{:s}-{:s}-{:s}-{:d}-fp.xml</flightplan>\n' \
+                              .format( icaoSpec, pathSsid, pathProc, pathNumb)
+      scenOHdl.write(oL)
+      scenOHdl.write('      <repeat>1</repeat>\n')
+      scenOHdl.write('    </entry>\n')
+      scenOHdl.write('  </scenario>\n')
+      scenOHdl.write('</PropertyList>\n')
+      scenOHdl.close
+      ##
+      aifpOFId = icaoSpec + '/AIFP/'+ icaoSpec + '-' + pathSsid + '-' +  pathProc \
+                                    + '-' + str(pathNumb) + '-fp.xml'
+      aifpOHdl = open( aifpOFId, 'w', 1)
+      ##
+      aifpOHdl.write('<?xml version="1.0"?>\n')
+      aifpOHdl.write('<PropertyList>\n')
+      aifpOHdl.write('  <flightplan>\n')
+      oL =           '\n    <!--{:s}-{:d}-->\n '.format( icaoSpec, pathNumb)
+      aifpOHdl.write(oL)
+      aifpOHdl.write('\n')
+      ##
+      ktas = 165
+      oL = '    <!-- i:{:s} s:{:s} p:{:s} r:{:s} w:{:s} -->\n' \
+           .format(icaoSpec, pathSsid, scanPath, \
+                   rwaySpec, wyptSpec )
+      aifpOHdl.write(oL)
+      for l in range(self.pthL[p]['tale']):
+        aifpOHdl.write('    <wpt>\n')
+        #oL = '      <name>{:s}-{:d}</name>\n' \
+        #     .format( self.pthL[p]['legL'][l]['iden'], (l+1) )
+        oL = '      <name>{:s}</name>\n' \
+             .format( self.pthL[p]['legL'][l]['iden'] )
+        aifpOHdl.write(oL)
+        oL = '      <lat type="double">{:07f}</lat>\n' \
+             .format(self.pthL[p]['legL'][l]['latN'])
+        aifpOHdl.write(oL)
+        oL = '      <lon type="double">{:08f}</lon>\n' \
+             .format(self.pthL[p]['legL'][l]['lonE'])
+        aifpOHdl.write(oL)
+        if ((self.pthL[p]['legL'][l]['altF']) > 0) :
+          oL = '      <crossat>{:d}</crossat>\n' \
+             .format(self.pthL[p]['legL'][l]['altF'])
+          aifpOHdl.write(oL)
+        oL = '      <ktas>{:d}</ktas>\n'.format(ktas)
+        aifpOHdl.write(oL)
+        aifpOHdl.write('      <flaps-down>true</flaps-down>\n')
+        aifpOHdl.write('      <gear-down>true</gear-down>\n')
+        aifpOHdl.write('      <on-ground>false</on-ground>\n')
+        aifpOHdl.write('    </wpt>\n\n')
+      # Append wp named END
+      aifpOHdl.write('    <wpt>\n')
+      oL = '      <name>END</name>\n'
+      aifpOHdl.write(oL)
+      oL = '      <lat type="double">{:07f}</lat>\n' \
+           .format(self.pthL[p]['legL'][l]['latN'])
+      aifpOHdl.write(oL)
+      oL = '      <lon type="double">{:08f}</lon>\n' \
+           .format(self.pthL[p]['legL'][l]['lonE'])
+      aifpOHdl.write(oL)
+      aifpOHdl.write('    </wpt>\n')
+      oL = '    <!-- END {:s}    {:s} -->\n\n' \
+           .format(icaoSpec, scanPath)
+      aifpOHdl.write(oL)
+      aifpOHdl.write('\n')
+      aifpOHdl.write('  </flightplan>\n')
+      aifpOHdl.write('</PropertyList>\n')
+      aifpOHdl.close
+      
+##   
+
   def toFGAIBody( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs list '''
     for p in range(self.pthsTale):
       ktas = 145
       oL = '\n    <!-- i:{:s} s:{:s} p:{:s} r:{:s} w:{:s} -->\n' \
-           .format(icaoSpec, self.pthL[p]['ssid'], self.pthL[p]['path'], \
+           .format(icaoSpec, pathSsid, self.pthL[p]['path'], \
                    rwaySpec, wyptSpec )
       outpHndl.write(oL)
       for l in range(self.pthL[p]['tale']):
@@ -1056,26 +1163,227 @@ class fplnMill:
     outpHndl.write('</PropertyList>\n')
 ##   
 
-  #
-  # FlightGear level-D output format: for Sid Star files for RM SID/STAR cmd
-  #
-  def toFGLDHead( self, outpHndl):
-    ''' given open file Handle:  write fgfs LevD xml procedure headlines '''
-    outpHndl.write('<?xml version="1.0"?>\n\n')
-    oL = '<!-- ** NOT FOR NAVIGATION ** FOR SIMULATION PUROSES ONLY ** -->\n'
-    outpHndl.write(oL)
-    oL = '<!-- **  IMAGINARY DATA NOT FOR USE IN REAL SITUATIONS    ** -->\n'
-    outpHndl.write(oL)
-    oL = '<!-- FGLD FlightGear RouteManager file generated by xmly.py  -->\n'
-    outpHndl.write(oL)
-    oL = '<!-- Scenery/Airports/{:s}/{:s}/{:s}/{:s}.procedure file     -->\n\n' \
-    .format(icaoSpec[0:1], icaoSpec[1:2], icaoSpec[2:3], icaoSpec)
-    outpHndl.write(oL)
-    outpHndl.write('<ProceduresDB version="FGLD by xmlly.py">\n')
-    oL = '  <Airport ICAOcode="{:s}">\n'.format(icaoSpec)
-    outpHndl.write(oL)
+#
+  def toKMLSBody( self, outpHndl):
+    ''' given open file Handle:  write fgfs RM xml body from legs list '''
+    for p in range(self.pthsTale):
+      deptName = icaoSpec
+      bodySsid = (self.pthL[p]['ssid'])
+      destIndx = self.pthL[p]['tale']-1
+      destName = self.pthL[p]['legL'][destIndx]['iden']
+      # Star: parse path to outFId if dotted else iden dot path
+      scanPath = self.pthL[p]['path']
+      if ('.' in scanPath ):
+        pathProc = scanPath
+      else :
+        pathProc = self.pthL[p]['legL'][destIndx]['iden'] + '.' + scanPath
+      #pathOFId = icaoSpec + '-' +  bodySsid + '-' + pathProc + '.kml'
+      pathOFId = icaoSpec + '/KMLS/' + icaoSpec + '-' +  bodySsid.upper() + '-' + pathProc + '.kml'
+      print('icaoSpec: ', icaoSpec + '-' +  bodySsid.upper() + '-' + pathProc + '.kml')
+      print('bodySsid.upper(): ', bodySsid.upper())
+      print('pathProc', pathProc)
+      print('pathOFId',pathOFId)
+      pathOHdl = open( pathOFId, 'w', 1)
+      oL = '    <airport type="string">{:s}</airport>\n'.format(deptName)
+      pathOHdl.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+      pathOHdl.write('<kml xmlns="http://www.opengis.net/kml/2.2">\n')
+      oL = '<!-- ** NOT FOR NAVIGATION *** FOR SIMULATION PUROSES ONLY ** -->\n'
+      pathOHdl.write(oL)
+      oL = '<!--        FG KML   Paths        generated by xmly.py        -->\n'
+      pathOHdl.write(oL)
+      oL = '<!-- Manually review and edit all entries for validity        -->\n'
+      pathOHdl.write(oL)
+      oL = '<!--     and for proper Dept/Destn Runway, ICAO names         -->\n'
+      pathOHdl.write(oL)
+      oL = '<!-- cmdl: {:s} -->\n'.format(str(sys.argv[1:]) )
+      pathOHdl.write(oL)
+      #
+      pathOHdl.write('<Document>\n')
+      pathOHdl.write('\n')
+      pathOHdl.write('  <Style id="airplane">\n')
+      pathOHdl.write('    <IconStyle>\n')
+      pathOHdl.write('      <Scale>0.2</Scale>\n')
+      pathOHdl.write('      <Icon>\n')
+      pathOHdl.write('        <href>http://maps.google.com/mapfiles/kml/pal3/icon53.png</href>\n')
+      pathOHdl.write('      </Icon>\n')
+      pathOHdl.write('    </IconStyle>\n')
+      pathOHdl.write('  </Style>\n')
+      pathOHdl.write('\n')
+      #
+      pathOHdl.write('  <Style id="navaid">\n')
+      pathOHdl.write('    <IconStyle>\n')
+      pathOHdl.write('      <Icon><href>http://maps.google.com/mapfiles/kml/pal3/icon53.png</href></Icon>\n')
+      pathOHdl.write('    </IconStyle>\n')
+      pathOHdl.write('  </Style>\n')
+      pathOHdl.write('\n')
+      #
+      pathOHdl.write('  <Style id="rangering">\n')
+      pathOHdl.write('    <LineStyle>\n')
+      pathOHdl.write('      <color>9f4f4faf</color>\n')
+      pathOHdl.write('      <width>2</width>\n')
+      pathOHdl.write('    </LineStyle>\n')
+      pathOHdl.write('  </Style>\n')
+      pathOHdl.write('\n')
+      #
+      pathOHdl.write('  <Style id="track">\n')
+      pathOHdl.write('    <LineStyle>\n')
+      pathOHdl.write('      <color>5fff8f8f</color>\n')
+      pathOHdl.write('      <width>4</width>\n')
+      pathOHdl.write('    </LineStyle>\n')
+      pathOHdl.write('  </Style>\n')
+      pathOHdl.write('\n')
+      #
+      pathOHdl.write('<Style id="waypoint">\n')
+      pathOHdl.write('  <IconStyle>\n')
+      pathOHdl.write('    <scale>0.5</scale>\n')
+      pathOHdl.write('    <Icon>\n')
+      pathOHdl.write('      <href>http://maps.google.com/mapfiles/kml/pal3/icon53.png</href>\n')
+      pathOHdl.write('    </Icon>\n')
+      pathOHdl.write('  </IconStyle>\n')
+      pathOHdl.write('</Style>\n')
+      pathOHdl.write('\n')
+      #
+      pathOHdl.write('  <Folder>\n')
+      pathOHdl.write('    <name>{:s} Tracks</name>\n'.format(pathProc))
+      pathOHdl.write('    <open>0</open>\n')
+      #
+      ## Nv20 pathOHdl.write('\n  <route>\n')
+      ## 19Se09 do not want an a/p rway record in route
+      ##outpHndl.write('    <Placemark>\n')
+      ##outpHndl.write('      <type type="string">runway</type>\n')
+      ##outpHndl.write('      <departure type="bool">true</departure>\n')
+      ##oL = '      <ident type="string">{:s}</ident>\n' \
+      ##     .format( self.pthL[p]['rway'])
+      ##outpHndl.write(oL)
+      ##oL = '      <icao type="string">{:s}</icao>\n' \
+      ##     .format( icaoSpec)
+      ##outpHndl.write(oL)
+      ##outpHndl.write('    </Placemark>\n')
+      #
+      for l in range(self.pthL[p]['tale']):
+        ##oL = '    <wp n="{:d}">\n'.format(l+1)
+        oL = '    <Placemark>\n'
+        pathOHdl.write(oL)
+        pathOHdl.write('      <styleUrl>#waypoint</styleUrl>\n')
+        oL = '      <name>{:s}</name>\n' \
+             .format(self.pthL[p]['legL'][l]['iden'])
+        pathOHdl.write(oL)
+
+        oL = '      <Point>\n'
+        pathOHdl.write(oL)
+        oL = '        <coordinates> {:07f},{:07f},4000 </coordinates> \n' \
+        .format(self.pthL[p]['legL'][l]['lonE'], (self.pthL[p]['legL'][l]['latN']))
+        pathOHdl.write(oL)
+        oL = '      </Point>\n'
+        pathOHdl.write(oL)
+
+        ##Nv 20 if ((self.pthL[p]['legL'][l]['altF']) > 0) :
+        if (0) :
+          oL = '      <alt-restrict type="string">at</alt-restrict>\n'
+          pathOHdl.write(oL)
+          oL = '      <altitude-ft type="double">{:d}</altitude-ft>\n' \
+               .format(self.pthL[p]['legL'][l]['altF'])
+          pathOHdl.write(oL)
+        pathOHdl.write('    </Placemark>\n')
+
+
+
+      ##outpHndl.write('    <Placemark>\n')
+      ##outpHndl.write('      <type type="string">runway</type>\n')
+      ##outpHndl.write('      <departure type="bool">true</departure>\n')
+      ##oL = '      <ident type="string">{:s}</ident>\n' \
+      ##     .format( self.pthL[p]['rway'])
+      ##outpHndl.write(oL)
+      ##oL = '      <ident type="string">{:s}</ident>\n' \
+      ##     .format( destName)
+      ##outpHndl.write(oL)
+      ##outpHndl.write('    </Placemark>\n')
+      ##Nv20 pathOHdl.write('  </route>\n')
+
+      pathOHdl.write('    <Placemark>\n')
+      pathOHdl.write('      <styleUrl>#track</styleUrl>\n')
+      pathOHdl.write('      <LineString>\n')
+      pathOHdl.write('        <coordinates>\n')
+      for l in range(self.pthL[p]['tale']):
+        oL = '          {:07f},{:07f},4000\n' \
+             .format(self.pthL[p]['legL'][l]['lonE'], (self.pthL[p]['legL'][l]['latN']))
+        pathOHdl.write(oL)
+      pathOHdl.write('        </coordinates>\n')
+      pathOHdl.write('      </LineString>\n')
+      pathOHdl.write('    </Placemark>\n')
+
+      pathOHdl.write('  </Folder>\n')
+      pathOHdl.write('</Document>\n')
+      pathOHdl.write('</kml>\n')
+      pathOHdl.flush
+      pathOHdl.close
+
+  def toORDRBody( self, outpHndl):
+    ''' given open file Handle:  write fgfs RM xml body from legs lists '''
+    outpHndl.write('\n<routes>\n\n')
+    # before route defns define, once, all waypoint name used in all paths
+    onceList = []
+    for p in range(self.pthsTale):
+      # stash values for skeleton spec file, first wp for sid, last for star
+      skelLegn = ''
+      skelSsid = (self.pthL[p]['ssid'])
+      for l in range(self.pthL[p]['tale']):
+        thisName = self.pthL[p]['legL'][l]['iden']
+        if ( thisName not in onceList):
+          onceList.append(thisName)
+          oL = '  <addPoint code="{:s}" point="{:07f},{:08f}"/>\n' \
+                   .format((self.pthL[p]['legL'][l]['iden']), \
+                           (self.pthL[p]['legL'][l]['latN']),
+                           (self.pthL[p]['legL'][l]['lonE']))
+          outpHndl.write(oL)
+      ##if (( skelFId  != '' ) & (skelSsid == 'Sid') ):
+      if (( skelFId  != '' ) & ( 'Sid' in skelSsid  ) ):
+        #Sid uses first legName in legList and Sid title == Path name
+        #skelLegn = (self.pthL[p]['legL'][l]['iden'])
+        #
+        skelLegn = (self.pthL[p]['path'])
+      ##if (( skelFId  != '' ) & (skelSsid == 'Sid') ):
+      if (( skelFId  != '' ) & ('Star' in skelSsid ) ):
+        #LastFirst legName in legList, save it
+        #        skelLegn = (self.pthL[p]['legL'][l]['iden'])
+        #
+        skelLegn = '{:s}'.format ((self.pthL[p]['path']) )
+      if (( skelFId  != '' ) & (( 'Star' in skelSsid ) | ( 'Sid' in skelSsid ))) :
+        # write line to skeleton spec file
+        oL = '{:s}, {:s}, {:s}, Rwy\n'.format((icaoSpec), \
+                                          (skelSsid), (skelLegn))
+        skelHndl.write(oL)
+    # iterate thru each path
+    for p in range(self.pthsTale):
+      # Each path may apply to more than one rway according to rwaySpec entry
+      #print (self.pthL[p]['ssid'])
+      if (( specFId  == '' ) | ('-Txtn' in self.pthL[p]['ssid'])) :
+        # no runway spec file or -Txtn in path type : output path
+        tRout.toORDRPath( outpHndl, p, self.pthL[p]['rway'] )
+      else:
+        for s in range(self.specTale):
+          if (icaoSpec in self.specL[s]['icao'] ):
+            #            print ( (self.pthL[p]['path']))
+            #
+            skelLegn = '{:s}'.format ((self.pthL[p]['path']) )
+            print(skelLegn)
+            if (self.specL[s]['type'] == self.pthL[p]['ssid']):
+              if ('Star' in self.specL[s]['type']):
+                # Arr list needs to match last wypt
+                l = self.pthL[p]['tale']
+                if (self.specL[s]['wypt'] == self.pthL[p]['legL'][l-1]['iden']):
+                  # call output path with rway inserted from specfile
+                  specRway = self.specL[s]['rway']
+                  tRout.toORDRPath( outpHndl, p, specRway )
+              if ('Sid' in self.specL[s]['type']):
+                # Dep list needs to match first wypt
+                if (self.specL[s]['wypt'] == self.pthL[p]['legL'][0]['iden']):
+                  # call output path with rway inserted from specfile
+                  specRway = self.specL[s]['rway']
+                  tRout.toORDRPath( outpHndl, p, specRway )
 ##   
 
+#
   def toFGLDBody( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs lists '''
     for p in range(self.pthsTale):
@@ -1245,71 +1553,6 @@ class fplnMill:
     outpHndl.write('  </route>\n')
 ##   
 
-  def toORDRBody( self, outpHndl):
-    ''' given open file Handle:  write fgfs RM xml body from legs lists '''
-    outpHndl.write('\n<routes>\n\n')
-    # before route defns define, once, all waypoint name used in all paths
-    onceList = []
-    for p in range(self.pthsTale):
-      # stash values for skeleton spec file, first wp for sid, last for star
-      skelLegn = ''
-      skelSsid = (self.pthL[p]['ssid'])
-      for l in range(self.pthL[p]['tale']):
-        thisName = self.pthL[p]['legL'][l]['iden']
-        if ( thisName not in onceList):
-          onceList.append(thisName)
-          oL = '  <addPoint code="{:s}" point="{:07f},{:08f}"/>\n' \
-                   .format((self.pthL[p]['legL'][l]['iden']), \
-                           (self.pthL[p]['legL'][l]['latN']),
-                           (self.pthL[p]['legL'][l]['lonE']))
-          outpHndl.write(oL)
-      ##if (( skelFId  != '' ) & (skelSsid == 'Sid') ):
-      if (( skelFId  != '' ) & ( 'Sid' in skelSsid  ) ):
-        #Sid uses first legName in legList and Sid title == Path name
-        #skelLegn = (self.pthL[p]['legL'][l]['iden'])
-        #
-        skelLegn = (self.pthL[p]['path'])
-      ##if (( skelFId  != '' ) & (skelSsid == 'Sid') ):
-      if (( skelFId  != '' ) & ('Star' in skelSsid ) ):
-        #LastFirst legName in legList, save it
-        #        skelLegn = (self.pthL[p]['legL'][l]['iden'])
-        #
-        skelLegn = '{:s}'.format ((self.pthL[p]['path']) )
-      if (( skelFId  != '' ) & (( 'Star' in skelSsid ) | ( 'Sid' in skelSsid ))) :
-        # write line to skeleton spec file
-        oL = '{:s}, {:s}, {:s}, Rwy\n'.format((icaoSpec), \
-                                          (skelSsid), (skelLegn))
-        skelHndl.write(oL)
-    # iterate thru each path
-    for p in range(self.pthsTale):
-      # Each path may apply to more than one rway according to rwaySpec entry
-      #print (self.pthL[p]['ssid'])
-      if (( specFId  == '' ) | ('-Txtn' in self.pthL[p]['ssid'])) :
-        # no runway spec file or -Txtn in path type : output path
-        tRout.toORDRPath( outpHndl, p, self.pthL[p]['rway'] )
-      else:
-        for s in range(self.specTale):
-          if (icaoSpec in self.specL[s]['icao'] ):
-            #            print ( (self.pthL[p]['path']))
-            #
-            skelLegn = '{:s}'.format ((self.pthL[p]['path']) )
-            print(skelLegn)
-            if (self.specL[s]['type'] == self.pthL[p]['ssid']):
-              if ('Star' in self.specL[s]['type']):
-                # Arr list needs to match last wypt
-                l = self.pthL[p]['tale']
-                if (self.specL[s]['wypt'] == self.pthL[p]['legL'][l-1]['iden']):
-                  # call output path with rway inserted from specfile
-                  specRway = self.specL[s]['rway']
-                  tRout.toORDRPath( outpHndl, p, specRway )
-              if ('Sid' in self.specL[s]['type']):
-                # Dep list needs to match first wypt
-                if (self.specL[s]['wypt'] == self.pthL[p]['legL'][0]['iden']):
-                  # call output path with rway inserted from specfile
-                  specRway = self.specL[s]['rway']
-                  tRout.toORDRPath( outpHndl, p, specRway )
-##   
-
   def toORDRTail( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml tail lines '''
     outpHndl.write('\n</routes>\n')
@@ -1443,160 +1686,6 @@ class fplnMill:
     outpHndl.write('</PropertyList>\n')
 ##   
 
-#
-  def toKMLSBody( self, outpHndl):
-    ''' given open file Handle:  write fgfs RM xml body from legs list '''
-    for p in range(self.pthsTale):
-      deptName = icaoSpec
-      bodySsid = (self.pthL[p]['ssid'])
-      destIndx = self.pthL[p]['tale']-1
-      destName = self.pthL[p]['legL'][destIndx]['iden']
-      # Star: parse path to outFId if dotted else iden dot path
-      scanPath = self.pthL[p]['path']
-      if ('.' in scanPath ):
-        pathProc = scanPath
-      else :
-        pathProc = self.pthL[p]['legL'][destIndx]['iden'] + '.' + scanPath
-      #pathOFId = icaoSpec + '-' +  bodySsid + '-' + pathProc + '.kml'
-      pathOFId = icaoSpec + '-' +  bodySsid.upper() + '-' + pathProc + '.kml'
-      print('icaoSpec: ', icaoSpec + '-' +  bodySsid.upper() + '-' + pathProc + '.kml')
-      print('bodySsid.upper(): ', bodySsid.upper())
-      print('pathProc', pathProc)
-      print('pathOFId',pathOFId)
-      pathOHdl = open( pathOFId, 'w', 1)
-      oL = '    <airport type="string">{:s}</airport>\n'.format(deptName)
-      pathOHdl.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-      pathOHdl.write('<kml xmlns="http://www.opengis.net/kml/2.2">\n')
-      oL = '<!-- ** NOT FOR NAVIGATION *** FOR SIMULATION PUROSES ONLY ** -->\n'
-      pathOHdl.write(oL)
-      oL = '<!--        FG KML   Paths        generated by xmly.py        -->\n'
-      pathOHdl.write(oL)
-      oL = '<!-- Manually review and edit all entries for validity        -->\n'
-      pathOHdl.write(oL)
-      oL = '<!--     and for proper Dept/Destn Runway, ICAO names         -->\n'
-      pathOHdl.write(oL)
-      oL = '<!-- cmdl: {:s} -->\n'.format(str(sys.argv[1:]) )
-      pathOHdl.write(oL)
-      #
-      pathOHdl.write('<Document>\n')
-      pathOHdl.write('\n')
-      pathOHdl.write('  <Style id="airplane">\n')
-      pathOHdl.write('    <IconStyle>\n')
-      pathOHdl.write('      <Scale>0.2</Scale>\n')
-      pathOHdl.write('      <Icon>\n')
-      pathOHdl.write('        <href>http://maps.google.com/mapfiles/kml/pal3/icon53.png</href>\n')
-      pathOHdl.write('      </Icon>\n')
-      pathOHdl.write('    </IconStyle>\n')
-      pathOHdl.write('  </Style>\n')
-      pathOHdl.write('\n')
-      #
-      pathOHdl.write('  <Style id="navaid">\n')
-      pathOHdl.write('    <IconStyle>\n')
-      pathOHdl.write('      <Icon><href>http://maps.google.com/mapfiles/kml/pal3/icon53.png</href></Icon>\n')
-      pathOHdl.write('    </IconStyle>\n')
-      pathOHdl.write('  </Style>\n')
-      pathOHdl.write('\n')
-      #
-      pathOHdl.write('  <Style id="rangering">\n')
-      pathOHdl.write('    <LineStyle>\n')
-      pathOHdl.write('      <color>9f4f4faf</color>\n')
-      pathOHdl.write('      <width>2</width>\n')
-      pathOHdl.write('    </LineStyle>\n')
-      pathOHdl.write('  </Style>\n')
-      pathOHdl.write('\n')
-      #
-      pathOHdl.write('  <Style id="track">\n')
-      pathOHdl.write('    <LineStyle>\n')
-      pathOHdl.write('      <color>5fff8f8f</color>\n')
-      pathOHdl.write('      <width>4</width>\n')
-      pathOHdl.write('    </LineStyle>\n')
-      pathOHdl.write('  </Style>\n')
-      pathOHdl.write('\n')
-      #
-      pathOHdl.write('<Style id="waypoint">\n')
-      pathOHdl.write('  <IconStyle>\n')
-      pathOHdl.write('    <scale>0.5</scale>\n')
-      pathOHdl.write('    <Icon>\n')
-      pathOHdl.write('      <href>http://maps.google.com/mapfiles/kml/pal3/icon53.png</href>\n')
-      pathOHdl.write('    </Icon>\n')
-      pathOHdl.write('  </IconStyle>\n')
-      pathOHdl.write('</Style>\n')
-      pathOHdl.write('\n')
-      #
-      pathOHdl.write('  <Folder>\n')
-      pathOHdl.write('    <name>{:s} Tracks</name>\n'.format(pathProc))
-      pathOHdl.write('    <open>0</open>\n')
-      #
-      ## Nv20 pathOHdl.write('\n  <route>\n')
-      ## 19Se09 do not want an a/p rway record in route
-      ##outpHndl.write('    <Placemark>\n')
-      ##outpHndl.write('      <type type="string">runway</type>\n')
-      ##outpHndl.write('      <departure type="bool">true</departure>\n')
-      ##oL = '      <ident type="string">{:s}</ident>\n' \
-      ##     .format( self.pthL[p]['rway'])
-      ##outpHndl.write(oL)
-      ##oL = '      <icao type="string">{:s}</icao>\n' \
-      ##     .format( icaoSpec)
-      ##outpHndl.write(oL)
-      ##outpHndl.write('    </Placemark>\n')
-      #
-      for l in range(self.pthL[p]['tale']):
-        ##oL = '    <wp n="{:d}">\n'.format(l+1)
-        oL = '    <Placemark>\n'
-        pathOHdl.write(oL)
-        pathOHdl.write('      <styleUrl>#waypoint</styleUrl>\n')
-        oL = '      <name>{:s}</name>\n' \
-             .format(self.pthL[p]['legL'][l]['iden'])
-        pathOHdl.write(oL)
-
-        oL = '      <Point>\n'
-        pathOHdl.write(oL)
-        oL = '        <coordinates> {:07f},{:07f},4000 </coordinates> \n' \
-        .format(self.pthL[p]['legL'][l]['lonE'], (self.pthL[p]['legL'][l]['latN']))
-        pathOHdl.write(oL)
-        oL = '      </Point>\n'
-        pathOHdl.write(oL)
-
-        ##Nv 20 if ((self.pthL[p]['legL'][l]['altF']) > 0) :
-        if (0) :
-          oL = '      <alt-restrict type="string">at</alt-restrict>\n'
-          pathOHdl.write(oL)
-          oL = '      <altitude-ft type="double">{:d}</altitude-ft>\n' \
-               .format(self.pthL[p]['legL'][l]['altF'])
-          pathOHdl.write(oL)
-        pathOHdl.write('    </Placemark>\n')
-
-
-
-      ##outpHndl.write('    <Placemark>\n')
-      ##outpHndl.write('      <type type="string">runway</type>\n')
-      ##outpHndl.write('      <departure type="bool">true</departure>\n')
-      ##oL = '      <ident type="string">{:s}</ident>\n' \
-      ##     .format( self.pthL[p]['rway'])
-      ##outpHndl.write(oL)
-      ##oL = '      <ident type="string">{:s}</ident>\n' \
-      ##     .format( destName)
-      ##outpHndl.write(oL)
-      ##outpHndl.write('    </Placemark>\n')
-      ##Nv20 pathOHdl.write('  </route>\n')
-
-      pathOHdl.write('    <Placemark>\n')
-      pathOHdl.write('      <styleUrl>#track</styleUrl>\n')
-      pathOHdl.write('      <LineString>\n')
-      pathOHdl.write('        <coordinates>\n')
-      for l in range(self.pthL[p]['tale']):
-        oL = '          {:07f},{:07f},4000\n' \
-             .format(self.pthL[p]['legL'][l]['lonE'], (self.pthL[p]['legL'][l]['latN']))
-        pathOHdl.write(oL)
-      pathOHdl.write('        </coordinates>\n')
-      pathOHdl.write('      </LineString>\n')
-      pathOHdl.write('    </Placemark>\n')
-
-      pathOHdl.write('  </Folder>\n')
-      pathOHdl.write('</Document>\n')
-      pathOHdl.write('</kml>\n')
-      pathOHdl.flush
-      pathOHdl.close
 ##   
 
   #
@@ -1777,7 +1866,7 @@ if __name__ == "__main__":
       # open output file
       outpHndl  = open(outpFId, 'w', 1)
       tRout.toFGAIHead(outpHndl)
-      tRout.toFGAIBody(outpHndl)
+      tRout.toFGAIAnwb(outpHndl)
       tRout.toFGAITail(outpHndl)
       outpHndl.flush
       outpHndl.close
@@ -1788,6 +1877,13 @@ if __name__ == "__main__":
       tRout.toFGLDBody(outpHndl)
       tRout.toFGLDTail(outpHndl)
       outpHndl.flush
+      outpHndl.close
+    if ('KMLS' in genrFmat.upper()):
+      # open output file
+      outpHndl  = open(outpFId, 'w', 1)
+      tRout.toKMLSBody( outpHndl)
+      outpHndl.flush
+    # close output file
       outpHndl.close
     if ('ORDR' in genrFmat.upper()):
       # open output file
@@ -1814,11 +1910,4 @@ if __name__ == "__main__":
       tRout.toRMV2Tail( outpHndl)
       outpHndl.flush
       outpHndl.close
-    if ('KMLS' in genrFmat.upper()):
-      # open output file
-      outpHndl  = open(outpFId, 'w', 1)
-      tRout.toKMLSBody( outpHndl)
-      outpHndl.flush
-      outpHndl.close
-    # close output file
 ##   
