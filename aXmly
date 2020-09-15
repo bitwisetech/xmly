@@ -1,0 +1,68 @@
+#!/bin/sh 
+# Utility to  auto-run xmly.py; creates OpenRadar procedures file and FGFS Sid/Star Rm routes according to given ICAO name 
+MNAM=${0##*/} && MNAM=${MNAM%%.*}
+ICAO=${1##*/} && ICAO=${ICAO%%.*}
+UNAM="whoami" 
+DNAM=${MNAM}
+if [ "$1" = "-h " ]  
+then 
+echo "$MNAM Utility to  auto-run xmly.py; creates OpenRadar procedures file and FGFS Sid/Star Rm routes according to given ICAO name "
+fi 
+###  Edit / Change these pathNames for your system  
+# subfolders with arg1 icaoName will be written with AIFP, KMLS, ORDR, RMV2, SCEN files  
+OUTPPATH="."
+# path to FAA inppppppput data
+DATAPATH="/data/ARDP"
+#
+TDIR="$ICAO/AIFP"
+echo  mkdir -p $TDIR
+mkdir -p $TDIR
+#
+TDIR="$ICAO/KMLS"
+echo  mkdir -p $TDIR
+mkdir -p $TDIR
+#
+TDIR="$ICAO/RMV2"
+echo  mkdir -p $TDIR
+mkdir -p $TDIR
+#
+TDIR="$ICAO/SCEN"
+echo  mkdir -p $TDIR
+mkdir -p $TDIR
+##
+#cd       "$ICAO"
+##
+echo `pwd`
+CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -g ORDR -n $ICAO -o $ICAO/procedures.xml -k $ICAO/$ICAO-skel.txt "
+echo $CALL
+#read -n1 -r -p  "$MNAM Rdy  OK  ( AnyKey or Ctl-C to exit)"
+$CALL
+# preserve already customized spec file else offer new one 
+if [ ! -f "$ICAO/$ICAO-spec.txt" ]; then
+  sort   $ICAO/$ICAO-skel.txt > $ICAO/$ICAO-spec.txt
+  nedit                         $ICAO/$ICAO-spec.txt
+#
+fi
+#
+CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -g ORDR -n $ICAO -o $ICAO/procedures.xml -s $ICAO/$ICAO-spec.txt "
+echo $CALL
+#read -n1 -r -p  "$MNAM Rdy  OK  ( AnyKey or Ctl-C to exit)"
+$CALL
+#
+CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -g FGAI -n $ICAO -o $ICAO/$ICAO-fgai.xml -s $ICAO/$ICAO-spec.txt "
+echo $CALL
+#read -n1 -r -p  "$MNAM Rdy  OK  ( AnyKey or Ctl-C to exit)"
+$CALL
+#
+CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -g KMLS -n $ICAO -o $ICAO/$ICAO-kmls.xml -s $ICAO/$ICAO-spec.txt "
+echo $CALL
+#read -n1 -r -p  "$MNAM Rdy  OK  ( AnyKey or Ctl-C to exit)"
+$CALL
+#
+CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -g RMV2 -n $ICAO -o $ICAO/$ICAO-rmv2.xml -s $ICAO/$ICAO-spec.txt "
+echo $CALL
+#read -n1 -r -p  "$MNAM Rdy  OK  ( AnyKey or Ctl-C to exit)"
+$CALL
+#
+# 
+echo "$MNAM $ICAO finis  "
