@@ -170,8 +170,8 @@ class fplnMill:
         progress = 'nxtlSrce'
         srceNmbr += 1
         #dbug trap
-        if (srceNmbr == 20540):
-          print('trap srceNmbr: ', srceNmbr)
+        #if (srceNmbr == 20540):
+          #print('trap srceNmbr: ', srceNmbr)
         # FAA proc path precedes Adap Airport Iden so run all leg lists
         # preset as unwanted, accum leg points until 'AA'
         pathGate = 'dontWant'
@@ -1000,10 +1000,10 @@ class fplnMill:
     oL = '<!--  and proper alt/crossat/ktas/flaps/gear/on-ground tags   -->\n'
     outpHndl.write(oL)
     outpHndl.write('\n<PropertyList>\n')
-    outpHndl.write('  <flightplan>\n')
+    outpHndl.write('    <flightplan>\n')
 ##   
 
-  def toFGAIAnwb( self, outpHndl):
+  def toFGAIBody( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs list '''
     pathNumb = 0
     for p in range(self.pthsTale):
@@ -1018,10 +1018,14 @@ class fplnMill:
       #      scenOFId = 'scen/' + icaoSpec + '-' + str(pathNumb) \
       #                   + '-' + scanPath  + '-ai.xml'
       #
-      scenOFId = icaoSpec + '/SCEN/' + icaoSpec + '-' + pathSsid + '-' +  pathProc \
+      scenOFId = 'SCEN/' + icaoSpec + '-' + pathSsid + '-' +  pathProc \
                                      + '-' + str(pathNumb) + '-ai.xml'
-      ##, \
+      ##
       scenOHdl = open( scenOFId, 'w', 1)
+      ##
+      oL = '        <scenario>{:s}-{:s}-{:s}-{:d}-ai.xml</scenario>\n'. \
+                      format(icaoSpec,pathSsid, pathProc,  pathNumb)
+      outpHndl.write(oL)
       ##
       scenOHdl.write('<?xml version="1.0"?>\n')
       scenOHdl.write('<PropertyList>\n')
@@ -1050,8 +1054,8 @@ class fplnMill:
       scenOHdl.write('</PropertyList>\n')
       scenOHdl.close
       ##
-      aifpOFId = icaoSpec + '/AIFP/'+ icaoSpec + '-' + pathSsid + '-' +  pathProc \
-                                    + '-' + str(pathNumb) + '-fp.xml'
+      aifpOFId = 'AIFP/'+ icaoSpec + '-' + pathSsid + '-' +  pathProc +\
+                                    '-' + str(pathNumb) + '-fp.xml'
       aifpOHdl = open( aifpOFId, 'w', 1)
       ##
       aifpOHdl.write('<?xml version="1.0"?>\n')
@@ -1110,7 +1114,7 @@ class fplnMill:
       
 ##   
 
-  def toFGAIBody( self, outpHndl):
+  def toFGAIPBdy( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs list '''
     for p in range(self.pthsTale):
       ktas = 145
@@ -1168,7 +1172,7 @@ class fplnMill:
     ''' given open file Handle:  write fgfs RM xml body from legs list '''
     for p in range(self.pthsTale):
       deptName = icaoSpec
-      bodySsid = (self.pthL[p]['ssid'])
+      pathSsid = (self.pthL[p]['ssid'])
       destIndx = self.pthL[p]['tale']-1
       destName = self.pthL[p]['legL'][destIndx]['iden']
       # Star: parse path to outFId if dotted else iden dot path
@@ -1177,10 +1181,10 @@ class fplnMill:
         pathProc = scanPath
       else :
         pathProc = self.pthL[p]['legL'][destIndx]['iden'] + '.' + scanPath
-      #pathOFId = icaoSpec + '-' +  bodySsid + '-' + pathProc + '.kml'
-      pathOFId = icaoSpec + '/KMLS/' + icaoSpec + '-' +  bodySsid.upper() + '-' + pathProc + '.kml'
-      print('icaoSpec: ', icaoSpec + '-' +  bodySsid.upper() + '-' + pathProc + '.kml')
-      print('bodySsid.upper(): ', bodySsid.upper())
+      #pathOFId = icaoSpec + '-' +  pathSsid + '-' + pathProc + '.kml'
+      pathOFId = icaoSpec + '/KMLS/' + icaoSpec + '-' +  pathSsid.upper() + '-' + pathProc + '.kml'
+      print('icaoSpec: ', icaoSpec + '-' +  pathSsid.upper() + '-' + pathProc + '.kml')
+      print('pathSsid.upper(): ', pathSsid.upper())
       print('pathProc', pathProc)
       print('pathOFId',pathOFId)
       pathOHdl = open( pathOFId, 'w', 1)
@@ -1583,9 +1587,11 @@ class fplnMill:
 
   def toRMV2Body( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs list '''
+    pathNumb = 0
     for p in range(self.pthsTale):
+      pathNumb += 1
       deptName = icaoSpec
-      bodySsid = (self.pthL[p]['ssid'])
+      pathSsid = (self.pthL[p]['ssid'])
       destIndx = self.pthL[p]['tale']-1
       destName = self.pthL[p]['legL'][destIndx]['iden']
       # Star: parse path to outFId if dotted else iden dot path
@@ -1594,10 +1600,12 @@ class fplnMill:
         pathProc = scanPath
       else :
         pathProc = self.pthL[p]['legL'][destIndx]['iden'] + '.' + scanPath
-      #pathOFId = icaoSpec + '-' +  bodySsid + '-' + pathProc + '-rm.xml'
-      pathOFId = icaoSpec + '-' +  bodySsid.upper() + '-' + pathProc + '-rm.xml'
-      print(pathOFId)
+      ##
+      pathOFId = 'RMV2/' + icaoSpec + '-' +  pathSsid + '-' + pathProc +  \
+                                      '-' + str(pathNumb) + '-rm.xml'
+      #print('RMV2: ', pathOFId)
       pathOHdl = open( pathOFId, 'w', 1)
+      ##
       oL = '    <airport type="string">{:s}</airport>\n'.format(deptName)
       pathOHdl.write('<?xml version="1.0"?>\n\n')
       oL = '<!-- ** NOT FOR NAVIGATION *** FOR SIMULATION PUROSES ONLY ** -->\n'
@@ -1612,7 +1620,7 @@ class fplnMill:
       pathOHdl.write(oL)
       pathOHdl.write('\n<PropertyList>\n')
       pathOHdl.write('  <version type="int">2</version>\n')
-      ##if ('id' in bodySsid):
+      ##if ('id' in pathSsid):
         ##outpHndl.write('\n  <departure>\n')
         ##oL = '    <airport type="string">{:s}</airport>\n'\
         ##   .format(deptName)
@@ -1622,7 +1630,7 @@ class fplnMill:
         ##outpHndl.write(oL)
         ##outpHndl.write('  </departure>\n')
 
-      ##if ('tar' in bodySsid):
+      ##if ('tar' in pathSsid):
         ##outpHndl.write('  <destination>\n')
         ##oL = '    <airport type="string">{:s}</airport>\n'\
         ##     .format(deptName)
@@ -1866,7 +1874,7 @@ if __name__ == "__main__":
       # open output file
       outpHndl  = open(outpFId, 'w', 1)
       tRout.toFGAIHead(outpHndl)
-      tRout.toFGAIAnwb(outpHndl)
+      tRout.toFGAIBody(outpHndl)
       tRout.toFGAITail(outpHndl)
       outpHndl.flush
       outpHndl.close
