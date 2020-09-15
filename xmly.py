@@ -175,7 +175,7 @@ class fplnMill:
         # FAA proc path precedes Adap Airport Iden so run all leg lists
         # preset as unwanted, accum leg points until 'AA'
         pathGate = 'dontWant'
-        # FAA Sequence number Snnnn == Star[-Txtn] Dnnnn == Sid[-Txtn]
+        # FAA Sequence number Snnnn == Star[-Tx] Dnnnn == Sid[-Tx]
         sequNmbr = srceLine[0:6]
         if (currSequ != sequNmbr):
           progress = 'anewSequ'
@@ -222,7 +222,7 @@ class fplnMill:
           # Get proc tye from 1st char and TX string
           if ('D' in srceLine[:1]):
             if ('TRANSITION' in srceLine):
-              thisType = 'Sid-Txtn'
+              thisType = 'Sid-Tx'
               ##11Se self.pathName = sfixIden + '.' + fnapIden
               ##11Se 
               self.pathName = fullIden
@@ -238,7 +238,7 @@ class fplnMill:
             # For arrival pathName is second part of FAA name
             starProc = sfixIden
             if ('TRANSITION' in srceLine):
-              thisType = 'Star-Txtn'
+              thisType = 'Star-Tx'
               # pathname is first wypt, stash proc part of name for matching
               ##17Je13 self.pathName = fullIden
               ##19Se02 self.pathName = sfixIden
@@ -283,13 +283,13 @@ class fplnMill:
         if (('Star' in thisType ) & \
             ((typeSpec in thisType )|(typeSpec == 'typeAAll' ))):
           #
-          if (   ('Txtn' in thisType ) ):
+          if (   ('Tx' in thisType ) ):
             # Star-txtn: txtnProc is sfixIden, match to prev proc's sfixIden
             if (('match' in adApGate ) and (fnapIden in sfixIden )) :
               tAlt -= 150
               pathGate = 'wantStTx'
           #
-          if (not('Txtn' in thisType ) ):
+          if (not('Tx' in thisType ) ):
             # waypoint list precedes AA Airport type, accum leg list 
             # Wanted if either wyptID matches last trk seg or is unspecified
             ## ((srceLine[10:12] == 'AA') & (adApIden in icaoSpec)): 20Se09
@@ -299,25 +299,25 @@ class fplnMill:
                  | (wyptSpec == 'wyptAAll')):
                  tAlt -= 20
                  pathGate = 'wantStar'
-                 # Stash STAR's beginning leg for match to Star-Txtn
+                 # Stash STAR's beginning leg for match to Star-Tx
                  wantPost = sfixIden
         if (('Sid' in thisType ) & \
             (( typeSpec in thisType)|(typeSpec == 'typeAAll' ))):
-          if ( ('Txtn' in thisType )) :
+          if ( ('Tx' in thisType )) :
             # Sid-txtn: txtnProc is sfixIden, match to prev proc's sfixIden
             #if ((sequAdAp in  currLegn) ):
             if (('match' in adApGate ) and  (fnapIden in sfixIden )) :
               tAlt += 1000
               pathGate = 'wantSdtx'
           else :
-            # Sid non-Txtn
+            # Sid non-Tx
             if (  ( 'match' in adApGate ) & (fnapIden in sfixIden) \
             ##if (  ( 'match' in adApGate ) & (fnapPrev in sfixIden) \
                 & (( procSpec == sfixIden) | (procSpec == 'procAAll')) \
                 & (( procBegl in wyptSpec ) | ('wyptAAll' in wyptSpec))) :
               tAlt += 150
               pathGate = 'AAdidSid'
-              # Stash STAR's beginning leg for match to Star-Txtn
+              # Stash STAR's beginning leg for match to Star-Tx
               wantPost = sfixIden
         if ( ( srceLine[10:12] == 'AA') & \
                ( not (( adApIden in icaoSpec) | (icaoSpec == 'icaoAAll'))))  :
@@ -886,10 +886,10 @@ class fplnMill:
       pathSfix = p
     pathFId = outpFId + '{:s}-{:s}.txt'.format( pathSfix, rway)
     outpHndl  = open(pathFId, 'w', 0)
-    # remove '-Txtn' suffixes from route types
-    if (tSsid == 'Sid-Txtn') :
+    # remove '-Tx' suffixes from route types
+    if (tSsid == 'Sid-Tx') :
       tSsid = 'sid'
-    if (tSsid == 'Star-Txtn') :
+    if (tSsid == 'Star-Tx') :
       tSsid = 'star'
     if (tSsid == 'sid') :
       # pink shift for departing wpts
@@ -1361,8 +1361,8 @@ class fplnMill:
     for p in range(self.pthsTale):
       # Each path may apply to more than one rway according to rwaySpec entry
       #print (self.pthL[p]['ssid'])
-      if (( specFId  == '' ) | ('-Txtn' in self.pthL[p]['ssid'])) :
-        # no runway spec file or -Txtn in path type : output path
+      if (( specFId  == '' ) | ('-Tx' in self.pthL[p]['ssid'])) :
+        # no runway spec file or -Tx in path type : output path
         tRout.toORDRPath( outpHndl, p, self.pthL[p]['rway'] )
       else:
         for s in range(self.specTale):
@@ -1416,9 +1416,9 @@ class fplnMill:
 
       for l in range(self.pthL[p]['tale']):
         wyptDecl = self.pthL[p]['ssid'] + '_Waypoint'
-        if ( 'Star-Txtn' in self.pthL[p]['ssid']) :
+        if ( 'Star-Tx' in self.pthL[p]['ssid']) :
           wyptDecl = 'StarTr_Waypoint'
-        if ( 'Sid-Txtn' in self.pthL[p]['ssid']) :
+        if ( 'Sid-Tx' in self.pthL[p]['ssid']) :
           wyptDecl = 'SidTr_Waypoint'
         oL = '\n      <{:s} ID="{:d}">\n' \
              .format(wyptDecl, l+2)
@@ -1494,11 +1494,11 @@ class fplnMill:
                 '100,100,210','150,110,210', '200,120,210',  '250,130,210', \
                 '250,200,220', '250,210,220', '150,220,220',  '200,230,220'   ]
     tSsid = (self.pthL[p]['ssid']).lower()
-    # remove '-Txtn' suffixes from route types
+    # remove '-Tx' suffixes from route types
     ## 19Se04  conditions never met: tSsid was lowercased
-    #if (tSsid == 'Sid-Txtn') :
+    #if (tSsid == 'Sid-Tx') :
     #  tSsid = 'sid'
-    #if (tSsid == 'Star-Txtn') :
+    #if (tSsid == 'Star-Tx') :
     #  tSsid = 'star'
     oL = '\n  <route name="{:s}" displayMode="{:s}" ' \
          .format(self.pthL[p]['path'], tSsid)
