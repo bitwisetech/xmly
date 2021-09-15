@@ -88,6 +88,8 @@ def normArgs(argv):
 class fplnMill:
 
   global icaoSpec
+  global sfixList
+
 
   def __init__( self, tName):
     '''Create empty list and reset tally'''
@@ -111,7 +113,7 @@ class fplnMill:
     # http://rfinder.asalink.net/free/autoroute_rtx.php
     # ID      FREQ   TRK   DIST   Coords                     Name/Remarks
     # LFMN    FFF.F    0      0   N4339'55.46" E00712'53.94" NICE COTE DAZ
-    tAlt = 10000
+    tAlt = 5111
     blnkPosn = tLine[:5].find(' ')
     if (blnkPosn < 1):
       blnkPosn = 5
@@ -170,19 +172,19 @@ class fplnMill:
         progress = 'nxtlSrce'
         srceNmbr += 1
         #dbug trap
-        #if (srceNmbr == 20540):
-          #print('trap srceNmbr: ', srceNmbr)
+        #        if (srceNmbr == 27051):
+        #          print('ding srceNmbr: ', srceNmbr)
         # FAA proc path precedes Adap Airport Iden so run all leg lists
         # preset as unwanted, accum leg points until 'AA'
-        pathGate = 'dontWant'
+        pathGate = 'psetShut'
         # FAA Sequence number Snnnn == Star[-Tx] Dnnnn == Sid[-Tx]
         sequNmbr = srceLine[0:6]
         if (currSequ != sequNmbr):
           progress = 'anewSequ'
           currSequ = sequNmbr
           #print('currSequ: ', currSequ)
-          adApIden = 'bnSq'
-          adApGate = 'bnSq'
+          adApIden = 'nSeqShut'
+          adApGate = 'nSeqShut'
         blnkPosn = 11 + srceLine[11:].find(' ')
         faclType = srceLine[10:blnkPosn]
         #
@@ -196,6 +198,7 @@ class fplnMill:
             fnapIden = srceLine[30:blnkPosn]
             adApIden = fnapIden
             # maybe more than one AA recd, flag for leglist dump
+            # fixme D0686 AA TIW NA BNA AA BNA , looks like preceding legList 
             pathGate = 'wantPath'
             # gate to remember for txtns
             adApGate = 'match'
@@ -212,7 +215,7 @@ class fplnMill:
           #
           # 20Se15 New sequ wipes AA match ? 
           pathGate = 'ndotShut'
-          adApGate = 'ndotWipe'
+          #adApGate = 'ndotWipe'
           # parse procedure into preface, post and full FAA name
           stopPosn = srceLine.find('.')
           blnkPosn = stopPosn + srceLine[stopPosn:].find(' ')
@@ -229,14 +232,14 @@ class fplnMill:
               ##11Se self.pathName = sfixIden + '.' + fnapIden
               ##11Se 
               self.pathName = fullIden
-              tAlt = 5000
+              tAlt = 4100
             else:
               thisType = 'Sid'
               # make up Sid name from first wypt and FAA procSpec
               ##20Se11
               ##11Se self.pathName = sfixIden + '.' + fnapIden
               self.pathName = fnapIden + '.' + pfixIden
-              tAlt = 250
+              tAlt = 2123
           if ('S' in srceLine[:1]):
             # For arrival pathName is second part of FAA name
             starProc = sfixIden
@@ -249,11 +252,11 @@ class fplnMill:
               # star subTag matches its transition subtag
               txtnProc = sfixIden
               ## 19Se08  ???? maybetxtnProc = prefsfixIden
-              tAlt = 10000
+              tAlt = 4200
             else :
               thisType = 'Star'
               ##20Se11 self.pathName = sfixIden + '.' + fnapIden
-              tAlt = 5000
+              tAlt = 2500
               # stash 1st leg name to match txtn end leg
           #End processing anewSequ for first line in procedure
         ##else:
@@ -279,20 +282,21 @@ class fplnMill:
         lDic = dict( iden = fnapIden, latN = latDec, lonE = lonDec, \
                      altF = int(tAlt), rmks='none' )
         # Do not apend Adapted Airport location to legsList
-        if not (srceLine[10:12] == 'AA') :
+        if (not (srceLine[10:12] == 'AA') and not(srceLine[10:12] == 'NA')) :
           self.legL.append(lDic)
           self.legsTale += 1
         # Star, Star-Transitions are first in FAA input file
         if (('Star' in thisType ) & \
             ((typeSpec in thisType )|(typeSpec == 'typeAAll' ))):
           #
-          if (   ('Tx' in thisType ) ):
+          if (   ('-Tx' in thisType ) ):
             # Star-txtn: txtnProc is sfixIden, match to prev proc's sfixIden
             if (('match' in adApGate ) and (fnapIden in sfixIden )) :
-              tAlt -= 150
+              #tAlt -= 150
+              #print('wantStTx')
               pathGate = 'wantStTx'
           #
-          if (not('Tx' in thisType ) ):
+          if (not('-Tx' in thisType ) ):
             # waypoint list precedes AA Airport type, accum leg list 
             # Wanted if either wyptID matches last trk seg or is unspecified
             ## ((srceLine[10:12] == 'AA') & (adApIden in icaoSpec)): 20Se09
@@ -300,17 +304,18 @@ class fplnMill:
               if ((procSpec == sfixIden) | (procSpec == 'procAAll')) :
                 if ((wyptSpec == self.legL[self.legsTale -1]['iden']) \
                  | (wyptSpec == 'wyptAAll')):
-                 tAlt -= 20
+                 #tAlt -= 20
                  pathGate = 'wantStar'
                  # Stash STAR's beginning leg for match to Star-Tx
                  wantPost = sfixIden
         if (('Sid' in thisType ) & \
             (( typeSpec in thisType)|(typeSpec == 'typeAAll' ))):
-          if ( ('Tx' in thisType )) :
+          if ( ('-Tx' in thisType )) :
             # Sid-txtn: txtnProc is sfixIden, match to prev proc's sfixIden
             #if ((sequAdAp in  currLegn) ):
             if (('match' in adApGate ) and  (fnapIden in sfixIden )) :
-              tAlt += 1000
+              #tAlt += 1000
+              #print('wantSdTx')
               pathGate = 'wantSdtx'
           else :
             # Sid non-Tx
@@ -318,7 +323,7 @@ class fplnMill:
             ##if (  ( 'match' in adApGate ) & (fnapPrev in sfixIden) \
                 & (( procSpec == sfixIden) | (procSpec == 'procAAll')) \
                 & (( procBegl in wyptSpec ) | ('wyptAAll' in wyptSpec))) :
-              tAlt += 150
+              #tAlt += 150
               pathGate = 'AAdidSid'
               # Stash STAR's beginning leg for match to Star-Tx
               wantPost = sfixIden
@@ -326,8 +331,8 @@ class fplnMill:
                ( not (( adApIden in icaoSpec) | (icaoSpec == 'icaoAAll'))))  :
           pathGate = 'dApRecd'
         if ( 'want' in pathGate ):
-            #print('want line: ', srceNmbr)
             tTyp = thisType
+            #            print('want line: ', srceNmbr, ' tTyp: ', tTyp)
             # Arrival procedures differentiate by last wpnt's fnapIden 
             if ('S' in srceLine[:1]):
               ##20Se11 
@@ -391,13 +396,13 @@ class fplnMill:
             if (('lat=' in srceLine) & (  leglOpen)):
               begnPosn = srceLine.find('lat=') + 5
               endnPosn = srceLine.find('"', begnPosn)
-              #print('line: ', srceTale, ' lat begn:', begnPosn, ' endn: ', endnPosn)
               tLat =float(srceLine[begnPosn:endnPosn])
+              print('line: ', srceTale, ' lat begn:', begnPosn, ' endn: ', endnPosn, ' Lat: ', tLat)
             if (('lon=' in srceLine) & (  leglOpen)):
               begnPosn = srceLine.find('lon=') + 5
               endnPosn = srceLine.find('"', begnPosn)
-              #print('line: ', srceTale, ' lon begn:', begnPosn, ' endn: ', endnPosn)
               tLon =float(srceLine[begnPosn:endnPosn])
+              print('line: ', srceTale, ' lon begn:', begnPosn, ' endn: ', endnPosn, ' Lon: ', tLon)
             if (('</rtept>' in srceLine)):
               #
               #print('/rtept: ', srceTale, ' lat begn:', begnPosn, ' endn: ', endnPosn)
@@ -478,7 +483,47 @@ class fplnMill:
 ##   
 
   #
-  # Level-D input format: xml file from navigraph subscription
+  # FG Airport threshold.xml file 
+  #   Each named procedure is a list of placemarks
+  def fromAIRP( self, inptFId):
+    wpntIndx = tNam = tTyp = tLat = tLon = tAlt =''
+    '''open a Level-D xml file, create dictionary of path legs'''
+    with open(inptFId, 'r') as srceHndl:
+      # 
+      progress = 'seekRway'
+      ssidEnds = 'noEndYet'
+      for srceLine in srceHndl:
+        if (( progress == 'seekRway') & ('<runway>' in srceLine)) :
+          progress = 'seekThresh'
+        if ((progress == 'seekThresh') & ('threshold' in srceLine)):
+          progress = 'seekGuts'
+        if ((progress == 'seekGuts') & ('<lon>' in srceLine)):
+          begnPosn = (srceLine.find('<lon>') + 5 )
+          endnPosn = (srceLine.find('"</lon>') )
+          tLon = srceLine[begnPosn:endnPosn]
+        if ((progress == 'seekGuts') & ('<lat>' in srceLine)):
+          begnPosn = (srceLine.find('<lat>') + 5 )
+          endnPosn = (srceLine.find('"</lat>') )
+          tLat = srceLine[begnPosn:endnPosn]
+        if ((progress == 'seekGuts') & ('<rwy>' in srceLine)):
+          begnPosn = (srceLine.find('<rwy>') + 5 )
+          endnPosn = (srceLine.find('"</rwy>') )
+          tNam = srceLine[begnPosn:endnPosn]
+        if ((progress == 'seekGuts') & ('/<threshold>' in srceLine)):
+          progress = 'endsThresh'
+          # skip invalid LatLon and fill Leg Dict and append to path list
+          if ( (tLat != 0) & (tLon != 0) ):
+            lDic = dict( iden = tNam, latN = tLat, lonE = tLon , rmks = 'none')
+            self.legL.append(lDic)
+            self.legsTale += 1
+        if ((progress == 'seekGuts') & ('/<runway>' in srceLine)):
+          progress = 'endsRway'
+          pDic = dict( path = tNam, rway = tNam, legL = self.legL, tale = self.legsTale)
+          self.pthL.append(copy.deepcopy(pDic))
+          self.pthsTale += 1
+    srceHndl.close()
+##   
+
   #   Each named procedure is a list of placemarks
   def fromLEVD( self, inptFId):
     wpntIndx = tNam = tTyp = tLat = tLon = tAlt =''
@@ -866,95 +911,123 @@ class fplnMill:
             self.specL.append(copy.deepcopy(sDic))
             self.specTale += 1
     specHndl.close()
-##   
+  ##   
 
   #
   # ATC-pie output format: for creating path displays
+  #  There is no header, no tail in ATC-pie drawn files. The <icao>.lst 
+  #    sb copied into CONFIG/bg-img and the paths in folder <icao> 
   #
-  # There is no header, no tail in ATC-pie drawn files
-
-  def toATPIPath( self, outpFId, p, rway):
+  def toATPIPath( self, tOutpFId, p, rway):
     ''' call from toATPIBody with hndl, pathIndx to write single path '''
     # Create eight different line styles and seven different colors
-    depClrs = ['#F03434',  '#F03470',  '#F034AC',  '#F034E8', \
-               '#F07034',  '#F07070',  '#F070AC',  '#F070E8', \
-               '#F0AC34',  '#F0AC70',  '#F0ACAC',  '#F0ACEC'  ]
-    arrClrs = ['#3434F0',  '#3470F0',  '#34ACF0',  '#34E8F0', \
-               '#7034F0',  '#7070F0',  '#70ACF0',  '#70E8F0', \
-               '#AC34F0',  '#AC70F0',  '#ACACF0',  '#ACE8F0'  ]
+    # 20Oc13 ATCPi seems to need no hashmark      
+    #depClrs = ['#F03434',  '#F03470',  '#F034AC',  '#F034E8', \
+    #           '#F07034',  '#F07070',  '#F070AC',  '#F070E8', \
+    #           '#F0AC34',  '#F0AC70',  '#F0ACAC',  '#F0ACEC'  ]
+    #arrClrs = ['#3434F0',  '#3470F0',  '#34ACF0',  '#34E8F0', \
+    #           '#7034F0',  '#7070F0',  '#70ACF0',  '#70E8F0', \
+    #           '#AC34F0',  '#AC70F0',  '#ACACF0',  '#ACE8F0'  ]
+    #           
+    depClrs = ['C86020',  'D08040',  'E0A468',  'F0C088', \
+               'C86020',  'D08040',  'E0A068',  'F0C088', \
+               'C86C20',  'D08C40',  'E0AC68',  'F0C08C'  ]
+    arrClrs = ['34A8F8',  '34A8F8',  '34A8F8',  '34A8F8', \
+               '70C8F8',  '70C8F8',  '70C8F8',  '70C8F8', \
+               'ACE8F8',  'ACE8F8',  'ACE8F8',  'ACE8F8'  ]
     lSsid = (self.pthL[p]['ssid']).lower()
-    # construct output fileID from outpFId and pathname / number
+    # construct output fileID from tOutpFId and pathname / number
     pathSfix = self.pthL[p]['path']
     if (pathSfix == ''):
       pathSfix = p
-    pathFId = outpFId + '{:s}-{:s}.txt'.format( pathSfix, rway)
-    outpHndl  = open(pathFId, 'w', 0)
-    # remove '-Tx' suffixes from route types
-    if (lSsid == 'sid-sx') :
-      lSsid = 'sid'
-    if (lSsid == 'star-tx') :
-      lSsid = 'star'
-    if (lSsid == 'sid') :
+    # File ID of each path files, stored in ATPI, copy to 'ICAO' folder
+    pathFId = icaoSpec + '/ATPI/' + icaoSpec
+    pathFId = pathFId + '-{:s}-{:s}-{}.txt' \
+                        .format((self.pthL[p]['ssid']), pathSfix, p)
+    outpHndl  = open(pathFId, 'w', 1)
+    if ('sid' in lSsid ) :
       # pink shift for departing wpts
-      oL = '\n {:s}'.format(depClrs[(p%12)])
+      oL = '{:s}\n'.format(depClrs[(p%12)])
     else:
       # skyblue shift for approach wpts
-      oL = '\n {:s}'.format(arrClrs[(p%12)])
+      oL = '{:s}\n'.format(arrClrs[(p%12)])
     outpHndl.write(oL)
     # Write line segments
-    for l in range(self.pthL[p]['tale']-1):
+    legsTale = (self.pthL[p]['tale'])
+    for l in range (legsTale ):
       latN = '{:f}'.format(self.pthL[p]['legL'][l]['latN'])
       lonE = '{:f}'.format(self.pthL[p]['legL'][l]['lonE'])
       # if bogus lat, lon then output by name, else numeric lat, lon
       if ((float(latN) > 90) & (float(lonE) > 180)):
-        oL = '\n{:s} '.format(self.pthL[p]['legL'][l]['iden'])
+        oL = '{:s}'.format(self.pthL[p]['legL'][l]['iden'])
       else:
-        oL = '\n{:s},{:s}'.format(latN, lonE)
+        oL = '{:s},{:s}'.format(latN, lonE)
       # pull 'remarks' field, if blank make up begin-end labels
       self.rmks =   self.pthL[p]['legL'][l]['rmks']
       if (self.rmks == 'none'):
-        self.rmks = ''
+        ## options to label as path.endpt etc 
+        #self.rmks = ''
         # Arrival first line append proc name
-        if(lSsid == 'star'):
-          if (l == 0):
-            self.rmks = self.pthL[p]['path']
-          #Arrival last line append rwy ID
-          if(l == (self.pthL[p]['tale']-2)):
-            self.rmks = rway
-          ## intermediate legs suggest alt in 100's ft
-          #if( (l != (self.pthL[p]['tale']-2)) & (l != 0)):
-          #  self.rmks = str(int(self.pthL[p]['legL'][l]['altF'] / 100))
-        if(lSsid == 'sid'):
+        #if( 'star' in lSsid ):
+          #if (l == 0):
+            #self.rmks = self.pthL[p]['path']
+            #Arrival last line append rwy ID
+            #f(l == (self.pthL[p]['tale']-2)):
+              #elf.rmks = rway
+            ## intermediate legs
+            #if( (l != (self.pthL[p]['tale']-2)) & (l != 0)):
+            #if(                                   (l != 0)):
+              #self.rmks = self.pthL[p]['legL'][l]['iden']
+        #if('sid' in lSsid ):
           # Sid first leg: identify rway
-          if (l == 0):
-            self.rmks = rway
-          if (l == (self.pthL[p]['tale']-2)):
+          #if (l == 0):
+            #self.rmks = rway
+          #if (l == (self.pthL[p]['tale']-2)):
             #Sid last leg append proc name
-            self.rmks = self.pthL[p]['path']
-          ## intermediate legs suggest alt in 100's ft
+            #self.rmks = self.pthL[p]['path']
+          ## intermediate legs
           #if( (l != (self.pthL[p]['tale']-2)) & (l != 0)):
-          #  self.rmks = str(int(self.pthL[p]['legL'][l]['altF'] / 100))
-      oL = oL + ' ' + self.rmks
+          #if( (l != (self.pthL[p]['tale']-2)) ):
+        self.rmks = self.pthL[p]['legL'][l]['iden']
+      oL = oL + ' ' + self.rmks + '\n'
+      #if ( 'AARCH' in self.pthL[p]['legL'][l]['iden']) :
+      #  trapFlag = 1
+        #print('trapppFlag: ', trapFlag)
       outpHndl.write(oL)
-    # Close route segme
+    # Close route segment
     outpHndl.write('  \n')
-    # Construct refeence line for list file
-    self.listLine = pathFId + ' DRAW ' + pathSfix + '-' + rway + '\n'
-    self.listHndl.write(self.listLine)
     outpHndl.flush
     outpHndl.close
+    #  Reference list: one line for eachg path file created 
+    #    filter out duped paths of same type
+    dupeMask = ( pathSfix + '-' + (self.pthL[p]['ssid']))
+    if not ( dupeMask in self.sfixList) :
+      # Construct reference line for list file
+      self.listLine = icaoSpec + '/' + icaoSpec
+      self.listLine = self.listLine + '-{:s}-{:s}-{}.txt ' \
+                          .format((self.pthL[p]['ssid']),  pathSfix, p)
+      self.listLine = self.listLine  + ' DRAW ' + pathSfix + '\n'
+      #self.listLine = icaoSpec + '/' + pathFId + ' DRAW ' + pathSfix + '\n'
+      #self.listLine =                  pathFId + ' DRAW ' + pathSfix + '\n'
+      #print(              self.listLine)
+      self.listHndl.write(self.listLine)
+      self.sfixList.append( dupeMask )
+      # print(self.sfixList)
 ##   
 
-  def toATPIBody( self, outpFId):
+  def toATPIBody( self, tOutpFId):
     ''' given open file ID write ATC-pie dwng  body from legs lists '''
-    # create and open list file holding refs to all path files created
-    self.listFId   = outpFId + icaoSpec + '.lst'
-    self.listHndl  = open(self.listFId, 'w', 0)
+    # Reference list file ID: create and open list file holding refs to all path files created
+    #  
+    self.listFId = icaoSpec + '/' + icaoSpec + '.lst'
+    #    self.listFId =                       icaoSpec + '.lst'
+    self.listHndl  = open(self.listFId, 'w', 1)
+    self.sfixList = []
     for p in range(self.pthsTale):
       # Each path may apply to more than one rway according to rwaySpec entry
       if ( specFId  == '' ):
         # no runway spec file called, output path
-        tRout.toATPIPath( outpFId, p, self.pthL[p]['rway'] )
+        tRout.toATPIPath( tOutpFId, p, self.pthL[p]['rway'] )
       else:
         for s in range(self.specTale):
           if (icaoSpec in self.specL[s]['icao'] ):
@@ -962,18 +1035,18 @@ class fplnMill:
               if ('Star' in self.specL[s]['type']):
                 # Arr list needs to match last wypt
                 l = self.pthL[p]['tale']
-                print((self.specL[s]['type'], self.specL[s]['wypt'], \
-                        self.pthL[p]['legL'][l-1]['iden']))
+                #print((self.specL[s]['type'], self.specL[s]['wypt'], \
+                #        self.pthL[p]['legL'][l-1]['iden']))
                 if (self.specL[s]['wypt'] == self.pthL[p]['legL'][l-1]['iden']):
                   # call output path with rway inserted from specfile
                   specRway = self.specL[s]['rway']
-                  tRout.toATPIPath( outpFId, p, specRway  )
+                  tRout.toATPIPath( tOutpFId, p, specRway  )
               if ('Sid' in self.specL[s]['type']):
                 # Dep list needs to match first wypt
                 if (self.specL[s]['wypt'] == self.pthL[p]['legL'][0]['iden']):
                   # call output path with rway inserted from specfile
                   specRway = self.specL[s]['rway']
-                  tRout.toATPIPath( outpFId, p, specRway  )
+                  tRout.toATPIPath( tOutpFId, p, specRway  )
     self.listHndl.flush
     self.listHndl.close
 ##   
@@ -1005,13 +1078,18 @@ class fplnMill:
     outpHndl.write(oL)
     oL = '<!--  and proper alt/crossat/ktas/flaps/gear/on-ground tags   -->\n'
     outpHndl.write(oL)
+    outpHndl.write('\n<!-- use xmly Export fgai scenarios with config arg -->\n')
     outpHndl.write('\n<PropertyList>\n')
-    outpHndl.write('    <flightplan>\n')
+    outpHndl.write('  <sim>\n')
+    outpHndl.write('    <ai>\n')
+    outpHndl.write('      <scenarios-enabled type="bool" userarchive="y">true</scenarios-enabled>\n')
 ##   
 
   def toFGAIBody( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs list '''
     pathNumb = 0
+    pfixList = []
+    sfixList = []
     for p in range(self.pthsTale):
       pathNumb += 1
       ##
@@ -1023,19 +1101,35 @@ class fplnMill:
         pathProc = self.pthL[p]['legL'][destIndx]['iden'] + '.' + scanPath
       ##
       scenOFId = icaoSpec + '/SCEN/' + icaoSpec + '-' + pathSsid + '-' +  pathProc \
-                                     + '-' + str(pathNumb) + '-ai.xml'
+                                     +  '-ai.xml'
       scenOHdl = open( scenOFId, 'w', 1)
       ##
-      oL = '        <scenario>{:s}-{:s}-{:s}-{:d}-ai.xml</scenario>\n'. \
-                      format(icaoSpec,pathSsid, pathProc,  pathNumb)
-      outpHndl.write(oL)
+      # ndupGate open for either pfixIden or sfixIden not seen before
+      dupeMask = ( pathProc[pathProc.find('.'):] + '-' + (self.pthL[p]['ssid']))
+      ndupGate = 'psetShut'
+      if not (dupeMask in pfixList) :
+        pfixList.append (dupeMask)
+        ndupGate = 'pfixNdup'
+      if not (dupeMask in sfixList) : 
+        sfixList.append ( dupeMask )
+        ndupGate = 'pfixNdup'
+      if ('Ndup' in ndupGate):
+        #print('ndup')
+        oL = '      <scenario>{:s}-{:s}-{:s}-ai.xml</scenario>\n'. \
+                      format(icaoSpec,pathSsid, scanPath)
+        outpHndl.write(oL)
+      else:                   
+        #print('dupe')
+        oL = '      <!--scenario>{:s}-{:s}-{:s}-ai.xml</scenario-->\n'. \
+                      format(icaoSpec,pathSsid, scanPath)
+        outpHndl.write(oL)
       ##
       scenOHdl.write('<?xml version="1.0"?>\n')
       scenOHdl.write('<PropertyList>\n')
       scenOHdl.write('  <scenario>\n')
       scenOHdl.write('\n')
-      oL =           '    <name>{:s}-{:d}-{:s} </name>\n'\
-                       .format( icaoSpec, pathNumb, pathSsid)
+      oL =           '    <name>{:s}-{:s}-{:s}-ai</name>\n'\
+                       .format( icaoSpec, pathSsid, scanPath)
       scenOHdl.write(oL)
       scenOHdl.write('    <description>\n')
       oL =           '      {:s}-{:s}\n'.format(pathSsid, scanPath)
@@ -1043,13 +1137,13 @@ class fplnMill:
       scenOHdl.write('      FG AI Scenario by xmly \n')
       scenOHdl.write('    </description>\n')
       scenOHdl.write('    <entry>\n')
-      oL =           '      <callsign>ai-{:s}</callsign>\n'.format(pathProc)
+      oL =           '      <callsign>{:s}-ai</callsign>\n'.format(pathProc)
       scenOHdl.write(oL)
       scenOHdl.write('      <type>aircraft</type>\n')
       scenOHdl.write('      <class>jet_transport</class>\n')
       scenOHdl.write('      <model>AI/Aircraft/747/744-Delta.xml</model>\n')
-      oL =           '      <flightplan>{:s}-{:s}-{:s}-{:d}-fp.xml</flightplan>\n' \
-                              .format( icaoSpec, pathSsid, pathProc, pathNumb)
+      oL =           '      <flightplan>{:s}-{:s}-{:s}-fp.xml</flightplan>\n' \
+                              .format( icaoSpec, pathSsid, scanPath)
       scenOHdl.write(oL)
       scenOHdl.write('      <repeat>1</repeat>\n')
       scenOHdl.write('    </entry>\n')
@@ -1057,15 +1151,15 @@ class fplnMill:
       scenOHdl.write('</PropertyList>\n')
       scenOHdl.close
       ##
-      aifpOFId = icaoSpec + '/AIFP/' + icaoSpec + '-' + pathSsid + '-' +  pathProc +\
-                                    '-' + str(pathNumb) + '-fp.xml'
+      aifpOFId = icaoSpec + '/AIFP/' + icaoSpec + '-' + pathSsid + '-' \
+                                     + scanPath + '-fp.xml'
       aifpOHdl = open( aifpOFId, 'w', 1)
       ##
-      aifpOHdl.write('<?xml version="1.0"?>\n')
+      aifpOHdl.write('<?xml version="1.0"?>\n\n')
+      oL =           '<!--{:s}-{:d}-->\n'.format( icaoSpec, pathNumb)
+      aifpOHdl.write(oL)
       aifpOHdl.write('<PropertyList>\n')
       aifpOHdl.write('  <flightplan>\n')
-      oL =           '\n    <!--{:s}-{:d}-->\n '.format( icaoSpec, pathNumb)
-      aifpOHdl.write(oL)
       aifpOHdl.write('\n')
       ##
       ktas = 165
@@ -1080,14 +1174,16 @@ class fplnMill:
         oL = '      <name>{:s}</name>\n' \
              .format( self.pthL[p]['legL'][l]['iden'] )
         aifpOHdl.write(oL)
+        lastLatN = self.pthL[p]['legL'][l]['latN']
         oL = '      <lat type="double">{:07f}</lat>\n' \
              .format(self.pthL[p]['legL'][l]['latN'])
         aifpOHdl.write(oL)
+        lastLonE = self.pthL[p]['legL'][l]['lonE']
         oL = '      <lon type="double">{:08f}</lon>\n' \
              .format(self.pthL[p]['legL'][l]['lonE'])
         aifpOHdl.write(oL)
         if ((self.pthL[p]['legL'][l]['altF']) > 0) :
-          oL = '      <crossat>{:d}</crossat>\n' \
+          oL = '      <alt>{:d}</alt>\n' \
              .format(self.pthL[p]['legL'][l]['altF'])
           aifpOHdl.write(oL)
         oL = '      <ktas>{:d}</ktas>\n'.format(ktas)
@@ -1101,10 +1197,10 @@ class fplnMill:
       oL = '      <name>END</name>\n'
       aifpOHdl.write(oL)
       oL = '      <lat type="double">{:07f}</lat>\n' \
-           .format(self.pthL[p]['legL'][l]['latN'])
+           .format(lastLatN)
       aifpOHdl.write(oL)
       oL = '      <lon type="double">{:08f}</lon>\n' \
-           .format(self.pthL[p]['legL'][l]['lonE'])
+           .format(lastLonE)
       aifpOHdl.write(oL)
       aifpOHdl.write('    </wpt>\n')
       oL = '    <!-- END {:s}    {:s} -->\n\n' \
@@ -1116,7 +1212,6 @@ class fplnMill:
       aifpOHdl.close
       
 ##   
-
   def toFGAIPBdy( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs list '''
     for p in range(self.pthsTale):
@@ -1139,7 +1234,7 @@ class fplnMill:
              .format(self.pthL[p]['legL'][l]['lonE'])
         outpHndl.write(oL)
         if ((self.pthL[p]['legL'][l]['altF']) > 0) :
-          oL = '      <crossat>{:d}</crossat>\n' \
+          oL = '      <alt>{:d}</alt>\n' \
              .format(self.pthL[p]['legL'][l]['altF'])
           outpHndl.write(oL)
         oL = '      <ktas>{:d}</ktas>\n'.format(ktas)
@@ -1162,238 +1257,24 @@ class fplnMill:
       oL = '    <!-- END {:s}    {:s} -->\n\n' \
            .format(icaoSpec, self.pthL[p]['path'])
       outpHndl.write(oL)
-##   
 
+##   
   def toFGAITail( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml tail lines '''
-    outpHndl.write('\n  </flightplan>\n')
+    outpHndl.write('    </ai>\n')
+    outpHndl.write('  </sim>\n')
     outpHndl.write('</PropertyList>\n')
+
+##
+  def toFGLDHead( self, outpHndl):
+    ''' given open file Handle:  write fgfs RM xml tail lines '''
+    outpHndl.write('<PropertyList>\n\n')
+    #outpHndl.write('  <Airport>\n')
+    #oL = '    <Name>{:s}</Name>\n'.format(icaoSpec)
+    #outpHndl.write(oL)
+    outpHndl.write('\n<!-- Start FGLD -->\n')
+
 ##   
-
-#
-  def toKMLSBody( self, outpHndl):
-    ''' given open file Handle:  write kml files from paths  '''
-    outpHndl.write(' Files are in KML folder\n')
-    outpHndl.write('  gpxsee app recommended\n')
-    pathNumb = 0
-    for p in range(self.pthsTale):
-      pathNumb += 1
-      deptName = icaoSpec
-      pathSsid = (self.pthL[p]['ssid'])
-      destIndx = self.pthL[p]['tale']-1
-      destName = self.pthL[p]['legL'][destIndx]['iden']
-      # Star: parse path to outFId if dotted else iden dot path
-      scanPath = self.pthL[p]['path']
-      if ('.' in scanPath ):
-        pathProc = scanPath
-      else :
-        pathProc = self.pthL[p]['legL'][destIndx]['iden'] + '.' + scanPath
-      ##
-      pathOFId = icaoSpec + '/KMLS/' + icaoSpec + '-' +  pathSsid + '-' + pathProc +  \
-                                      '-' + str(pathNumb) + '.kml'
-      #print('RMV2: ', pathOFId)
-      ##
-      pathOHdl = open( pathOFId, 'w', 1)
-      oL = '    <airport type="string">{:s}</airport>\n'.format(deptName)
-      pathOHdl.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-      pathOHdl.write('<kml xmlns="http://www.opengis.net/kml/2.2">\n')
-      oL = '<!-- ** NOT FOR NAVIGATION *** FOR SIMULATION PUROSES ONLY ** -->\n'
-      pathOHdl.write(oL)
-      oL = '<!--        FG KML   Paths        generated by xmly.py        -->\n'
-      pathOHdl.write(oL)
-      oL = '<!-- Manually review and edit all entries for validity        -->\n'
-      pathOHdl.write(oL)
-      oL = '<!--     and for proper Dept/Destn Runway, ICAO names         -->\n'
-      pathOHdl.write(oL)
-      oL = '<!-- cmdl: {:s} -->\n'.format(str(sys.argv[1:]) )
-      pathOHdl.write(oL)
-      #
-      pathOHdl.write('<Document>\n')
-      pathOHdl.write('\n')
-      pathOHdl.write('  <Style id="airplane">\n')
-      pathOHdl.write('    <IconStyle>\n')
-      pathOHdl.write('      <Scale>0.2</Scale>\n')
-      pathOHdl.write('      <Icon>\n')
-      pathOHdl.write('        <href>http://maps.google.com/mapfiles/kml/pal3/icon53.png</href>\n')
-      pathOHdl.write('      </Icon>\n')
-      pathOHdl.write('    </IconStyle>\n')
-      pathOHdl.write('  </Style>\n')
-      pathOHdl.write('\n')
-      #
-      pathOHdl.write('  <Style id="navaid">\n')
-      pathOHdl.write('    <IconStyle>\n')
-      pathOHdl.write('      <Icon><href>http://maps.google.com/mapfiles/kml/pal3/icon53.png</href></Icon>\n')
-      pathOHdl.write('    </IconStyle>\n')
-      pathOHdl.write('  </Style>\n')
-      pathOHdl.write('\n')
-      #
-      pathOHdl.write('  <Style id="rangering">\n')
-      pathOHdl.write('    <LineStyle>\n')
-      pathOHdl.write('      <color>9f4f4faf</color>\n')
-      pathOHdl.write('      <width>2</width>\n')
-      pathOHdl.write('    </LineStyle>\n')
-      pathOHdl.write('  </Style>\n')
-      pathOHdl.write('\n')
-      #
-      pathOHdl.write('  <Style id="track">\n')
-      pathOHdl.write('    <LineStyle>\n')
-      pathOHdl.write('      <color>5fff8f8f</color>\n')
-      pathOHdl.write('      <width>4</width>\n')
-      pathOHdl.write('    </LineStyle>\n')
-      pathOHdl.write('  </Style>\n')
-      pathOHdl.write('\n')
-      #
-      pathOHdl.write('<Style id="waypoint">\n')
-      pathOHdl.write('  <IconStyle>\n')
-      pathOHdl.write('    <scale>0.5</scale>\n')
-      pathOHdl.write('    <Icon>\n')
-      pathOHdl.write('      <href>http://maps.google.com/mapfiles/kml/pal3/icon53.png</href>\n')
-      pathOHdl.write('    </Icon>\n')
-      pathOHdl.write('  </IconStyle>\n')
-      pathOHdl.write('</Style>\n')
-      pathOHdl.write('\n')
-      #
-      pathOHdl.write('  <Folder>\n')
-      pathOHdl.write('    <name>{:s} Tracks</name>\n'.format(pathProc))
-      pathOHdl.write('    <open>0</open>\n')
-      #
-      ## Nv20 pathOHdl.write('\n  <route>\n')
-      ## 19Se09 do not want an a/p rway record in route
-      ##outpHndl.write('    <Placemark>\n')
-      ##outpHndl.write('      <type type="string">runway</type>\n')
-      ##outpHndl.write('      <departure type="bool">true</departure>\n')
-      ##oL = '      <ident type="string">{:s}</ident>\n' \
-      ##     .format( self.pthL[p]['rway'])
-      ##outpHndl.write(oL)
-      ##oL = '      <icao type="string">{:s}</icao>\n' \
-      ##     .format( icaoSpec)
-      ##outpHndl.write(oL)
-      ##outpHndl.write('    </Placemark>\n')
-      #
-      for l in range(self.pthL[p]['tale']):
-        ##oL = '    <wp n="{:d}">\n'.format(l+1)
-        oL = '    <Placemark>\n'
-        pathOHdl.write(oL)
-        pathOHdl.write('      <styleUrl>#waypoint</styleUrl>\n')
-        oL = '      <name>{:s}</name>\n' \
-             .format(self.pthL[p]['legL'][l]['iden'])
-        pathOHdl.write(oL)
-
-        oL = '      <Point>\n'
-        pathOHdl.write(oL)
-        oL = '        <coordinates> {:07f},{:07f},4000 </coordinates> \n' \
-        .format(self.pthL[p]['legL'][l]['lonE'], (self.pthL[p]['legL'][l]['latN']))
-        pathOHdl.write(oL)
-        oL = '      </Point>\n'
-        pathOHdl.write(oL)
-
-        ##Nv 20 if ((self.pthL[p]['legL'][l]['altF']) > 0) :
-        if (0) :
-          oL = '      <alt-restrict type="string">at</alt-restrict>\n'
-          pathOHdl.write(oL)
-          oL = '      <altitude-ft type="double">{:d}</altitude-ft>\n' \
-               .format(self.pthL[p]['legL'][l]['altF'])
-          pathOHdl.write(oL)
-        pathOHdl.write('    </Placemark>\n')
-
-
-
-      ##outpHndl.write('    <Placemark>\n')
-      ##outpHndl.write('      <type type="string">runway</type>\n')
-      ##outpHndl.write('      <departure type="bool">true</departure>\n')
-      ##oL = '      <ident type="string">{:s}</ident>\n' \
-      ##     .format( self.pthL[p]['rway'])
-      ##outpHndl.write(oL)
-      ##oL = '      <ident type="string">{:s}</ident>\n' \
-      ##     .format( destName)
-      ##outpHndl.write(oL)
-      ##outpHndl.write('    </Placemark>\n')
-      ##Nv20 pathOHdl.write('  </route>\n')
-
-      pathOHdl.write('    <Placemark>\n')
-      pathOHdl.write('      <styleUrl>#track</styleUrl>\n')
-      pathOHdl.write('      <LineString>\n')
-      pathOHdl.write('        <coordinates>\n')
-      for l in range(self.pthL[p]['tale']):
-        oL = '          {:07f},{:07f},4000\n' \
-             .format(self.pthL[p]['legL'][l]['lonE'], (self.pthL[p]['legL'][l]['latN']))
-        pathOHdl.write(oL)
-      pathOHdl.write('        </coordinates>\n')
-      pathOHdl.write('      </LineString>\n')
-      pathOHdl.write('    </Placemark>\n')
-
-      pathOHdl.write('  </Folder>\n')
-      pathOHdl.write('</Document>\n')
-      pathOHdl.write('</kml>\n')
-      pathOHdl.flush
-      pathOHdl.close
-
-  def toORDRBody( self, outpHndl):
-    ''' given open file Handle:  write fgfs RM xml body from legs lists '''
-    outpHndl.write('\n<routes>\n\n')
-    # before route defns define, once, all waypoint name used in all paths
-    onceList = []
-    for p in range(self.pthsTale):
-      # stash values for skeleton spec file, first wp for sid, last for star
-      skelLegn = ''
-      skelSsid = (self.pthL[p]['ssid'])
-      for l in range(self.pthL[p]['tale']):
-        thisName = self.pthL[p]['legL'][l]['iden']
-        if ( thisName not in onceList):
-          onceList.append(thisName)
-          oL = '  <addPoint code="{:s}" point="{:07f},{:08f}"/>\n' \
-                   .format((self.pthL[p]['legL'][l]['iden']), \
-                           (self.pthL[p]['legL'][l]['latN']),
-                           (self.pthL[p]['legL'][l]['lonE']))
-          outpHndl.write(oL)
-      ##if (( skelFId  != '' ) & (skelSsid == 'Sid') ):
-      if (( skelFId  != '' ) & ( 'Sid' in skelSsid  ) ):
-        #Sid uses first legName in legList and Sid title == Path name
-        #skelLegn = (self.pthL[p]['legL'][l]['iden'])
-        #
-        skelLegn = (self.pthL[p]['path'])
-      ##if (( skelFId  != '' ) & (skelSsid == 'Sid') ):
-      if (( skelFId  != '' ) & ('Star' in skelSsid ) ):
-        #LastFirst legName in legList, save it
-        #        skelLegn = (self.pthL[p]['legL'][l]['iden'])
-        #
-        skelLegn = '{:s}'.format ((self.pthL[p]['path']) )
-      if (( skelFId  != '' ) & (( 'Star' in skelSsid ) | ( 'Sid' in skelSsid ))) :
-        # write line to skeleton spec file
-        oL = '{:s}, {:s}, {:s}, Rwy\n'.format((icaoSpec), \
-                                          (skelSsid), (skelLegn))
-        skelHndl.write(oL)
-    # iterate thru each path
-    for p in range(self.pthsTale):
-      # Each path may apply to more than one rway according to rwaySpec entry
-      #print (self.pthL[p]['ssid'])
-      if (( specFId  == '' ) | ('-Tx' in self.pthL[p]['ssid'])) :
-        # no runway spec file or -Tx in path type : output path
-        tRout.toORDRPath( outpHndl, p, self.pthL[p]['rway'] )
-      else:
-        for s in range(self.specTale):
-          if (icaoSpec in self.specL[s]['icao'] ):
-            #            print ( (self.pthL[p]['path']))
-            #
-            skelLegn = '{:s}'.format ((self.pthL[p]['path']) )
-            #print(skelLegn)
-            if (self.specL[s]['type'] == self.pthL[p]['ssid']):
-              if ('Star' in self.specL[s]['type']):
-                # Arr list needs to match last wypt
-                l = self.pthL[p]['tale']
-                if (self.specL[s]['wypt'] == self.pthL[p]['legL'][l-1]['iden']):
-                  # call output path with rway inserted from specfile
-                  specRway = self.specL[s]['rway']
-                  tRout.toORDRPath( outpHndl, p, specRway )
-              if ('Sid' in self.specL[s]['type']):
-                # Dep list needs to match first wypt
-                if (self.specL[s]['wypt'] == self.pthL[p]['legL'][0]['iden']):
-                  # call output path with rway inserted from specfile
-                  specRway = self.specL[s]['rway']
-                  tRout.toORDRPath( outpHndl, p, specRway )
-##   
-
-#
   def toFGLDBody( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs lists '''
     for p in range(self.pthsTale):
@@ -1462,9 +1343,190 @@ class fplnMill:
 
   def toFGLDTail( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml tail lines '''
-    outpHndl.write('  </Airport>\n')
-    outpHndl.write('\n</ProceduresDB>\n')
+    outpHndl.write('\n<!-- End FGLD -->\n')
+    #outpHndl.write('\n  </Airport>\n')
+    outpHndl.write('\n</PropertyList>\n')
+    
 ##   
+  def toKMLSBody( self, outpHndl):
+    ''' given open file Handle:  write kml files from paths  '''
+    outpHndl.write(' Files are in ./KMLS folder\n')
+    outpHndl.write('  gpxsee app recommended\n')
+    pathNumb = 0
+    pfixList = []
+    sfixList = []
+    for p in range(self.pthsTale):
+      pathNumb += 1
+      deptName = icaoSpec
+      pathSsid = (self.pthL[p]['ssid'])
+      destIndx = self.pthL[p]['tale']-1
+      if ( destIndx > 0 ) :
+        destName = self.pthL[p]['legL'][destIndx]['iden']
+        # Star: parse path to outFId if dotted else iden dot path
+        scanPath = self.pthL[p]['path']
+        if ('.' in scanPath ):
+          pathProc = scanPath
+        else :
+          pathProc = self.pthL[p]['legL'][destIndx]['iden'] + '.' + scanPath
+        ##
+        # ndupGate open for either pfixIden or sfixIden not seen before
+        ndupGate = 'psetShut'
+        ndupFlag = 'dupe'
+        if not (pathProc[:pathProc.find('.')] in pfixList):
+          pfixList.append (pathProc[:pathProc.find('.')])
+          ndupGate = 'pfixNdup'
+          ndupFlag = 'ndup'
+        if not (pathProc[pathProc.find('.'):] in sfixList) : 
+          sfixList.append (pathProc[pathProc.find('.'):])
+          ndupGate = 'sfixNdup'
+          ndupFlag = 'ndup'
+        if ('Ndup' in ndupGate):
+          oL = '<!-- ndup pathProc: {:s}-{:s}-{:s}-{} -->\n'.format(icaoSpec, \
+                               pathSsid, scanPath, p)
+          outpHndl.write(oL)
+        else :
+          oL = '<!-- dupe pathProc: {:s}-{:s}-{:s}-{} -->\n'.format(icaoSpec, \
+                               pathSsid, scanPath, p)
+          outpHndl.write(oL)
+        ##
+        pathOFId = icaoSpec + '/KMLS/' + icaoSpec + '-' + pathSsid + '-' \
+                            + ndupFlag + '-' + pathProc + '-' + str(p) + '.kml'
+        #      print('KMLS: ', pathOFId)
+        ##
+        pathOHdl = open( pathOFId, 'w', 1)
+        oL = '    <airport type="string">{:s}</airport>\n'.format(deptName)
+        pathOHdl.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        pathOHdl.write('<kml xmlns="http://www.opengis.net/kml/2.2">\n')
+        oL = '<!-- ** NOT FOR NAVIGATION *** FOR SIMULATION PUROSES ONLY ** -->\n'
+        pathOHdl.write(oL)
+        oL = '<!--        FG KML   Paths        generated by xmly.py        -->\n'
+        pathOHdl.write(oL)
+        oL = '<!-- Manually review and edit all entries for validity        -->\n'
+        pathOHdl.write(oL)
+        oL = '<!--     and for proper Dept/Destn Runway, ICAO names         -->\n'
+        pathOHdl.write(oL)
+        oL = '<!-- cmdl: {:s} -->\n'.format(str(sys.argv[1:]) )
+        pathOHdl.write(oL)
+        #
+        pathOHdl.write('<Document>\n')
+        pathOHdl.write('\n')
+        pathOHdl.write('  <Style id="airplane">\n')
+        pathOHdl.write('    <IconStyle>\n')
+        pathOHdl.write('      <Scale>0.2</Scale>\n')
+        pathOHdl.write('      <Icon>\n')
+        pathOHdl.write('        <href>http://maps.google.com/mapfiles/kml/pal3/icon53.png</href>\n')
+        pathOHdl.write('      </Icon>\n')
+        pathOHdl.write('    </IconStyle>\n')
+        pathOHdl.write('  </Style>\n')
+        pathOHdl.write('\n')
+        #
+        pathOHdl.write('  <Style id="navaid">\n')
+        pathOHdl.write('    <IconStyle>\n')
+        pathOHdl.write('      <Icon><href>http://maps.google.com/mapfiles/kml/pal3/icon53.png</href></Icon>\n')
+        pathOHdl.write('    </IconStyle>\n')
+        pathOHdl.write('  </Style>\n')
+        pathOHdl.write('\n')
+        #
+        pathOHdl.write('  <Style id="rangering">\n')
+        pathOHdl.write('    <LineStyle>\n')
+        pathOHdl.write('      <color>9f4f4faf</color>\n')
+        pathOHdl.write('      <width>2</width>\n')
+        pathOHdl.write('    </LineStyle>\n')
+        pathOHdl.write('  </Style>\n')
+        pathOHdl.write('\n')
+        #
+        pathOHdl.write('  <Style id="track">\n')
+        pathOHdl.write('    <LineStyle>\n')
+        pathOHdl.write('      <color>5fff8f8f</color>\n')
+        pathOHdl.write('      <width>4</width>\n')
+        pathOHdl.write('    </LineStyle>\n')
+        pathOHdl.write('  </Style>\n')
+        pathOHdl.write('\n')
+        #
+        pathOHdl.write('<Style id="waypoint">\n')
+        pathOHdl.write('  <IconStyle>\n')
+        pathOHdl.write('    <scale>0.5</scale>\n')
+        pathOHdl.write('    <Icon>\n')
+        pathOHdl.write('      <href>http://maps.google.com/mapfiles/kml/pal3/icon53.png</href>\n')
+        pathOHdl.write('    </Icon>\n')
+        pathOHdl.write('  </IconStyle>\n')
+        pathOHdl.write('</Style>\n')
+        pathOHdl.write('\n')
+        #
+        pathOHdl.write('  <Folder>\n')
+        pathOHdl.write('    <name>{:s} Tracks</name>\n'.format(pathProc))
+        pathOHdl.write('    <open>0</open>\n')
+        #
+        ## Nv20 pathOHdl.write('\n  <route>\n')
+        ## 19Se09 do not want an a/p rway record in route
+        ##outpHndl.write('    <Placemark>\n')
+        ##outpHndl.write('      <type type="string">runway</type>\n')
+        ##outpHndl.write('      <departure type="bool">true</departure>\n')
+        ##oL = '      <ident type="string">{:s}</ident>\n' \
+        ##     .format( self.pthL[p]['rway'])
+        ##outpHndl.write(oL)
+        ##oL = '      <icao type="string">{:s}</icao>\n' \
+        ##     .format( icaoSpec)
+        ##outpHndl.write(oL)
+        ##outpHndl.write('    </Placemark>\n')
+        #
+        for l in range(self.pthL[p]['tale']):
+          ##oL = '    <wp n="{:d}">\n'.format(l+1)
+          oL = '    <Placemark>\n'
+          pathOHdl.write(oL)
+          pathOHdl.write('      <styleUrl>#waypoint</styleUrl>\n')
+          oL = '      <name>{:s}</name>\n' \
+               .format(self.pthL[p]['legL'][l]['iden'])
+          pathOHdl.write(oL)
+
+          oL = '      <Point>\n'
+          pathOHdl.write(oL)
+          oL = '        <coordinates> {:07f},{:07f},4000 </coordinates> \n' \
+          .format(self.pthL[p]['legL'][l]['lonE'], (self.pthL[p]['legL'][l]['latN']))
+          pathOHdl.write(oL)
+          oL = '      </Point>\n'
+          pathOHdl.write(oL)
+
+          ##Nv 20 if ((self.pthL[p]['legL'][l]['altF']) > 0) :
+          if (0) :
+            oL = '      <alt-restrict type="string">at</alt-restrict>\n'
+            pathOHdl.write(oL)
+            oL = '      <altitude-ft type="double">{:d}</altitude-ft>\n' \
+                 .format(self.pthL[p]['legL'][l]['altF'])
+            pathOHdl.write(oL)
+          pathOHdl.write('    </Placemark>\n')
+        ##outpHndl.write('    <Placemark>\n')
+        ##outpHndl.write('      <type type="string">runway</type>\n')
+        ##outpHndl.write('      <departure type="bool">true</departure>\n')
+        ##oL = '      <ident type="string">{:s}</ident>\n' \
+        ##     .format( self.pthL[p]['rway'])
+        ##outpHndl.write(oL)
+        ##oL = '      <ident type="string">{:s}</ident>\n' \
+        ##     .format( destName)
+        ##outpHndl.write(oL)
+        ##outpHndl.write('    </Placemark>\n')
+        ##Nv20 pathOHdl.write('  </route>\n')
+
+        pathOHdl.write('    <Placemark>\n')
+        pathOHdl.write('      <styleUrl>#track</styleUrl>\n')
+        pathOHdl.write('      <LineString>\n')
+        pathOHdl.write('        <coordinates>\n')
+        for l in range(self.pthL[p]['tale']):
+          oL = '          {:07f},{:07f},4000\n' \
+               .format(self.pthL[p]['legL'][l]['lonE'], (self.pthL[p]['legL'][l]['latN']))
+          pathOHdl.write(oL)
+        pathOHdl.write('        </coordinates>\n')
+        pathOHdl.write('      </LineString>\n')
+        pathOHdl.write('    </Placemark>\n')
+
+        pathOHdl.write('  </Folder>\n')
+        pathOHdl.write('</Document>\n')
+        pathOHdl.write('</kml>\n')
+        pathOHdl.flush
+        pathOHdl.close
+
+#
+
 
   #
   # OpenRadar output format: for creating OR path displays
@@ -1557,6 +1619,76 @@ class fplnMill:
     outpHndl.write('  </route>\n')
 ##   
 
+  def toORDRBody( self, outpHndl):
+    ''' given open file Handle:  write fgfs RM xml body from legs lists '''
+    outpHndl.write('\n<routes>\n\n')
+    # before route defns define, once, all waypoint name used in all paths
+    onceList = []
+    for p in range(self.pthsTale):
+      # stash values for skeleton spec file, first wp for sid, last for star
+      skelLegn = ''
+      skelSsid = (self.pthL[p]['ssid'])
+      for l in range(self.pthL[p]['tale']):
+        thisName = self.pthL[p]['legL'][l]['iden']
+        if ( thisName not in onceList):
+          onceList.append(thisName)
+          oL = '  <addPoint code="{:s}" point="{:07f},{:08f}"/>\n' \
+                   .format((self.pthL[p]['legL'][l]['iden']), \
+                           (self.pthL[p]['legL'][l]['latN']),
+                           (self.pthL[p]['legL'][l]['lonE']))
+          outpHndl.write(oL)
+      ##if (( skelFId  != '' ) & (skelSsid == 'Sid') ):
+      if (( skelFId  != '' ) & ( 'Sid' in skelSsid  ) ):
+        #Sid uses first legName in legList and Sid title == Path name
+        #skelLegn = (self.pthL[p]['legL'][l]['iden'])
+        #
+        skelLegn = (self.pthL[p]['path'])
+      ##if (( skelFId  != '' ) & (skelSsid == 'Sid') ):
+      if (( skelFId  != '' ) & ('Star' in skelSsid ) ):
+        #LastFirst legName in legList, save it
+        #        skelLegn = (self.pthL[p]['legL'][l]['iden'])
+        #
+        skelLegn = '{:s}'.format ((self.pthL[p]['path']) )
+      if (( skelFId  != '' ) & (( 'Star' in skelSsid ) | ( 'Sid' in skelSsid ))) :
+        # write line to skeleton spec file
+        oL = '{:s}, {:s}, {:s}, Rwy\n'.format((icaoSpec), \
+                                          (skelSsid), (skelLegn))
+        skelHndl.write(oL)
+    # iterate thru each path
+    for p in range(self.pthsTale):
+      # Each path may apply to more than one rway according to rwaySpec entry
+      #      print ('@p: ', p, self.pthL[p]['path'])
+      #if ( 'BLV' in self.pthL[p]['path']) :
+      #  trapFlag = 1
+        #        print('ding trapFlag: ', trapFlag)
+      if (( specFId  == '' ) | ('-Tx' in self.pthL[p]['ssid'])) :
+        # no runway spec file or -Tx in path type : output path
+        tRout.toORDRPath( outpHndl, p, self.pthL[p]['rway'] )
+      else:
+        for s in range(self.specTale):
+          if (icaoSpec in self.specL[s]['icao'] ):
+            #            print ( (self.pthL[p]['path']))
+            #
+            skelLegn = '{:s}'.format ((self.pthL[p]['path']) )
+            #print(skelLegn)
+            if ( (self.specL[s]['type'] == self.pthL[p]['ssid']) \
+             and (self.pthL[p]['tale'] > 0)):
+              if ('Star' in self.specL[s]['type']):
+                # Arr list needs to match last wypt
+                l = self.pthL[p]['tale']
+                if (self.specL[s]['wypt'] == self.pthL[p]['legL'][l-1]['iden']):
+                  # call output path with rway inserted from specfile
+                  specRway = self.specL[s]['rway']
+                  tRout.toORDRPath( outpHndl, p, specRway )
+              if ('Sid' in self.specL[s]['type']):
+                # Dep list needs to match first wypt
+                #print (self.specL[s]['wypt']) 
+                #print (self.pthL[p]['legL'][0]['iden'])
+                if (self.specL[s]['wypt'] == self.pthL[p]['legL'][0]['iden']):
+                  specRway = self.specL[s]['rway']
+                  tRout.toORDRPath( outpHndl, p, specRway )
+##   
+
   def toORDRTail( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml tail lines '''
     outpHndl.write('\n</routes>\n')
@@ -1589,104 +1721,115 @@ class fplnMill:
   def toRMV2Body( self, outpHndl):
     ''' given open file Handle:  write fgfs RM xml body from legs list '''
     pathNumb = 0
+    pfixList = []
+    sfixList = []
     for p in range(self.pthsTale):
       pathNumb += 1
       deptName = icaoSpec
       pathSsid = (self.pthL[p]['ssid'])
-      destIndx = self.pthL[p]['tale']-1
-      destName = self.pthL[p]['legL'][destIndx]['iden']
-      # Star: parse path to outFId if dotted else iden dot path
-      scanPath = self.pthL[p]['path']
-      if ('.' in scanPath ):
-        pathProc = scanPath
-      else :
-        pathProc = self.pthL[p]['legL'][destIndx]['iden'] + '.' + scanPath
-      ##
-      pathOFId = icaoSpec + '/RMV2/' + icaoSpec + '-' +  pathSsid + '-' + pathProc +  \
-                                      '-' + str(pathNumb) + '-rm.xml'
-      #print('RMV2: ', pathOFId)
-      pathOHdl = open( pathOFId, 'w', 1)
-      ##
-      oL = '    <airport type="string">{:s}</airport>\n'.format(deptName)
-      pathOHdl.write('<?xml version="1.0"?>\n\n')
-      oL = '<!-- ** NOT FOR NAVIGATION *** FOR SIMULATION PUROSES ONLY ** -->\n'
-      pathOHdl.write(oL)
-      oL = '<!--        FG RM V2 Procedure(s) generated by xmly.py        -->\n'
-      pathOHdl.write(oL)
-      oL = '<!-- Manually review and edit all entries for validity        -->\n'
-      pathOHdl.write(oL)
-      oL = '<!--     and for proper Dept/Destn Runway, ICAO names         -->\n'
-      pathOHdl.write(oL)
-      oL = '<!-- cmdl: {:s} -->\n'.format(str(sys.argv[1:]))
-      pathOHdl.write(oL)
-      pathOHdl.write('\n<PropertyList>\n')
-      pathOHdl.write('  <version type="int">2</version>\n')
-      ##if ('id' in pathSsid):
-        ##outpHndl.write('\n  <departure>\n')
-        ##oL = '    <airport type="string">{:s}</airport>\n'\
-        ##   .format(deptName)
-        ##outpHndl.write(oL)
-        ##oL = '    <runway type="string">{:s}</runway>\n' \
-        ##   .format( self.pthL[p]['rway'])
-        ##outpHndl.write(oL)
-        ##outpHndl.write('  </departure>\n')
+      destIndx = (self.pthL[p]['tale']-1)
+      if ( destIndx > 0 ) :
+        destName = self.pthL[p]['legL'][destIndx]['iden']
+        # Star: parse path to outFId if dotted else iden dot path
+        scanPath = self.pthL[p]['path']
+        if ('.' in scanPath ):
+          pathProc = scanPath
+        else :
+          pathProc = self.pthL[p]['legL'][destIndx]['iden'] + '.' + scanPath
+        ##
+        ndupFlag = 'dupe'
+        if not (pathProc[:pathProc.find('.')] in pfixList):
+          pfixList.append (pathProc[:pathProc.find('.')])
+          ndupFlag = 'ndup'
+        if not (pathProc[pathProc.find('.'):] in sfixList) : 
+          sfixList.append (pathProc[pathProc.find('.'):])
+          ndupGate = 'sfixNdup'
+          ndupFlag = 'ndup'
+        pathOFId = icaoSpec + '/RMV2/' + icaoSpec + '-' + pathSsid + '-' + ndupFlag \
+                                                  + '-' + pathProc + '-rm.xml'
+        #print('RMV2: ', pathOFId)
+        pathOHdl = open( pathOFId, 'w', 1)
+        ##
+        oL = '    <airport type="string">{:s}</airport>\n'.format(deptName)
+        pathOHdl.write('<?xml version="1.0"?>\n\n')
+        oL = '<!-- ** NOT FOR NAVIGATION *** FOR SIMULATION PUROSES ONLY ** -->\n'
+        pathOHdl.write(oL)
+        oL = '<!--        FG RM V2 Procedure(s) generated by xmly.py        -->\n'
+        pathOHdl.write(oL)
+        oL = '<!-- Manually review and edit all entries for validity        -->\n'
+        pathOHdl.write(oL)
+        oL = '<!--     and for proper Dept/Destn Runway, ICAO names         -->\n'
+        pathOHdl.write(oL)
+        oL = '<!-- cmdl: {:s} -->\n'.format(str(sys.argv[1:]))
+        pathOHdl.write(oL)
+        pathOHdl.write('\n<PropertyList>\n')
+        pathOHdl.write('  <version type="int">2</version>\n')
+        pathOHdl.write('\n  <route>\n')
+        ##if ('id' in pathSsid):
+          ##outpHndl.write('\n  <departure>\n')
+          ##oL = '    <airport type="string">{:s}</airport>\n'\
+          ##   .format(deptName)
+          ##outpHndl.write(oL)
+          ##oL = '    <runway type="string">{:s}</runway>\n' \
+          ##   .format( self.pthL[p]['rway'])
+          ##outpHndl.write(oL)
+          ##outpHndl.write('  </departure>\n')
 
-      ##if ('tar' in pathSsid):
-        ##outpHndl.write('  <destination>\n')
-        ##oL = '    <airport type="string">{:s}</airport>\n'\
-        ##     .format(deptName)
-        ##outpHndl.write(oL)
-        ##oL = '    <runway type="string">{:s}</runway>\n' \
+        ##if ('tar' in pathSsid):
+          ##outpHndl.write('  <destination>\n')
+          ##oL = '    <airport type="string">{:s}</airport>\n'\
+          ##     .format(deptName)
+          ##outpHndl.write(oL)
+          ##oL = '    <runway type="string">{:s}</runway>\n' \
+          ##     .format( self.pthL[p]['rway'])
+          ##outpHndl.write(oL)
+          ##outpHndl.write('  </destination>\n')
+        ## 19Se09 do not want an a/p rway record in route
+        ##outpHndl.write('    <wp>\n')
+        ##outpHndl.write('      <type type="string">runway</type>\n')
+        ##outpHndl.write('      <departure type="bool">true</departure>\n')
+        ##oL = '      <ident type="string">{:s}</ident>\n' \
         ##     .format( self.pthL[p]['rway'])
         ##outpHndl.write(oL)
-        ##outpHndl.write('  </destination>\n')
-      pathOHdl.write('\n  <route>\n')
-      ## 19Se09 do not want an a/p rway record in route
-      ##outpHndl.write('    <wp>\n')
-      ##outpHndl.write('      <type type="string">runway</type>\n')
-      ##outpHndl.write('      <departure type="bool">true</departure>\n')
-      ##oL = '      <ident type="string">{:s}</ident>\n' \
-      ##     .format( self.pthL[p]['rway'])
-      ##outpHndl.write(oL)
-      ##oL = '      <icao type="string">{:s}</icao>\n' \
-      ##     .format( icaoSpec)
-      ##outpHndl.write(oL)
-      ##outpHndl.write('    </wp>\n')
-      for l in range(self.pthL[p]['tale']):
-        ##oL = '    <wp n="{:d}">\n'.format(l+1)
-        oL = '    <wp>\n'
-        pathOHdl.write(oL)
-        pathOHdl.write('      <type type="string">navaid</type>\n')
-        oL = '      <ident type="string">{:s}</ident>\n' \
-             .format(self.pthL[p]['legL'][l]['iden'])
-        pathOHdl.write(oL)
-        oL = '      <lat type="double">{:07f}</lat>\n' \
-             .format(self.pthL[p]['legL'][l]['latN'])
-        pathOHdl.write(oL)
-        oL = '      <lon type="double">{:08f}</lon>\n' \
-             .format(self.pthL[p]['legL'][l]['lonE'])
-        pathOHdl.write(oL)
-        if ((self.pthL[p]['legL'][l]['altF']) > 0) :
-          oL = '      <alt-restrict type="string">at</alt-restrict>\n'
+        ##oL = '      <icao type="string">{:s}</icao>\n' \
+        ##     .format( icaoSpec)
+        ##outpHndl.write(oL)
+        ##outpHndl.write('    </wp>\n')
+        for l in range(self.pthL[p]['tale']):
+          ##oL = '    <wp n="{:d}">\n'.format(l+1)
+          oL = '    <wp>\n'
           pathOHdl.write(oL)
-          oL = '      <altitude-ft type="double">{:d}</altitude-ft>\n' \
-               .format(self.pthL[p]['legL'][l]['altF'])
+          pathOHdl.write('      <type type="string">navaid</type>\n')
+          oL = '      <ident type="string">{:s}</ident>\n' \
+               .format(self.pthL[p]['legL'][l]['iden'])
           pathOHdl.write(oL)
-        pathOHdl.write('    </wp>\n')
-      ##outpHndl.write('    <wp>\n')
-      ##outpHndl.write('      <type type="string">runway</type>\n')
-      ##outpHndl.write('      <departure type="bool">true</departure>\n')
-      ##oL = '      <ident type="string">{:s}</ident>\n' \
-      ##     .format( self.pthL[p]['rway'])
-      ##outpHndl.write(oL)
-      ##oL = '      <ident type="string">{:s}</ident>\n' \
-      ##     .format( destName)
-      ##outpHndl.write(oL)
-      ##outpHndl.write('    </wp>\n')
-      pathOHdl.write('  </route>\n')
-      pathOHdl.write('</PropertyList>\n')
-      pathOHdl.flush
-      pathOHdl.close
+          oL = '      <lat type="double">{:07f}</lat>\n' \
+               .format(self.pthL[p]['legL'][l]['latN'])
+          pathOHdl.write(oL)
+          oL = '      <lon type="double">{:08f}</lon>\n' \
+               .format(self.pthL[p]['legL'][l]['lonE'])
+          pathOHdl.write(oL)
+          if ((self.pthL[p]['legL'][l]['altF']) > 0) :
+            oL = '      <alt-restrict type="string">at</alt-restrict>\n'
+            pathOHdl.write(oL)
+            oL = '      <altitude-ft type="double">{:d}</altitude-ft>\n' \
+                 .format(self.pthL[p]['legL'][l]['altF'])
+            pathOHdl.write(oL)
+          pathOHdl.write('    </wp>\n')
+        ##outpHndl.write('    <wp>\n')
+        ##outpHndl.write('      <type type="string">runway</type>\n')
+        ##outpHndl.write('      <departure type="bool">true</departure>\n')
+        ##oL = '      <ident type="string">{:s}</ident>\n' \
+        ##     .format( self.pthL[p]['rway'])
+        ##outpHndl.write(oL)
+        ##oL = '      <ident type="string">{:s}</ident>\n' \
+        ##     .format( destName)
+        ##outpHndl.write(oL)
+        ##outpHndl.write('    </wp>\n')
+        pathOHdl.write('  </route>\n')
+        pathOHdl.write('</PropertyList>\n')
+        pathOHdl.flush
+        pathOHdl.close
 ##   
 
   def toRMV2Tail( self, outpHndl):
@@ -1848,6 +1991,8 @@ if __name__ == "__main__":
     # create flightPLanMill
     tRout = fplnMill(icaoSpec + '-' + typeSpec)
     # run input file scanner
+    if ('AIRP' in srceFmat.upper()):
+      tRout.fromAIRP(inptFId)
     if ('ARDP' in srceFmat.upper()):
       tRout.fromARDP(inptFId)
     if ('ASAL' in srceFmat.upper()):

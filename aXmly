@@ -18,7 +18,15 @@ TDIR="$ICAO/AIFP"
 echo  mkdir -p $TDIR
 mkdir -p $TDIR
 #
+TDIR="$ICAO/ATPI"
+echo  mkdir -p $TDIR
+mkdir -p $TDIR
+#
 TDIR="$ICAO/KMLS"
+echo  mkdir -p $TDIR
+mkdir -p $TDIR
+#
+TDIR="$ICAO/LVLD"
 echo  mkdir -p $TDIR
 mkdir -p $TDIR
 #
@@ -33,7 +41,7 @@ mkdir -p $TDIR
 #cd       "$ICAO"
 ##
 echo `pwd`
-CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -g ORDR -n $ICAO -o $ICAO/procedures.xml -k $ICAO/$ICAO-skel.txt "
+CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -n $ICAO -g ORDR -o $ICAO/procedures.xml -k $ICAO/$ICAO-skel.txt "
 echo $CALL
 #read -n1 -r -p  "$MNAM Rdy  OK  ( AnyKey or Ctl-C to exit)"
 $CALL
@@ -44,22 +52,33 @@ if [ ! -f "$ICAO/$ICAO-spec.txt" ]; then
 #
 fi
 #
-CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -g ORDR -n $ICAO -o $ICAO/procedures.xml -s $ICAO/$ICAO-spec.txt "
+CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -n $ICAO -g ORDR -o $ICAO/procedures.xml -s $ICAO/$ICAO-spec.txt "
 echo $CALL
 #read -n1 -r -p  "$MNAM Rdy  OK  ( AnyKey or Ctl-C to exit)"
 $CALL
 #
-CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -g FGAI -n $ICAO -o $ICAO/$ICAO-fgai.xml -s $ICAO/$ICAO-spec.txt "
+CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -n $ICAO -g ATPI -o $ICAO/$ICAO                                  "
 echo $CALL
 #read -n1 -r -p  "$MNAM Rdy  OK  ( AnyKey or Ctl-C to exit)"
 $CALL
 #
-CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -g KMLS -n $ICAO -o $ICAO/$ICAO-kmls.xml -s $ICAO/$ICAO-spec.txt "
+CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -n $ICAO -g FGAI -o $ICAO/$ICAO-fgai.xml -s $ICAO/$ICAO-spec.txt "
 echo $CALL
 #read -n1 -r -p  "$MNAM Rdy  OK  ( AnyKey or Ctl-C to exit)"
 $CALL
 #
-CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -g RMV2 -n $ICAO -o $ICAO/$ICAO-rmv2.xml -s $ICAO/$ICAO-spec.txt "
+CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -n $ICAO -g KMLS -o $ICAO/$ICAO-klst.xml                         "
+echo $CALL
+#read -n1 -r -p  "$MNAM Rdy  OK  ( AnyKey or Ctl-C to exit)"
+$CALL
+sort $ICAO/$ICAO-klst.xml > $ICAO/$ICAO-kmls.xml
+#
+CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -n $ICAO -g FGLD -o $ICAO/$ICAO-fgld.xml -s $ICAO/$ICAO-spec.txt "
+echo $CALL
+#read -n1 -r -p  "$MNAM Rdy  OK  ( AnyKey or Ctl-C to exit)"
+$CALL
+#
+CALL="xmly.py -i $DATAPATH/STARDP.txt -f ARDP -n $ICAO -g RMV2 -o $ICAO/$ICAO-rmv2.xml                         "
 echo $CALL
 #read -n1 -r -p  "$MNAM Rdy  OK  ( AnyKey or Ctl-C to exit)"
 $CALL
